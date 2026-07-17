@@ -1,0 +1,197 @@
+{
+  "success": true,
+  "data": {
+    "trainNumber": "64450",
+    "trainName": "New Delhi - Ghaziabad Ladies Special",
+    "startDate": "2026-07-09",
+    "status": "cancelled",
+    "train": {
+      "number": "64450",
+      "name": "New Delhi - Ghaziabad Ladies Special",
+      "type": "EMU",
+      "category": "Local",
+      "source": {
+        "code": "NDLS",
+        "name": "New Delhi",
+        "lat": 28.642912,
+        "lng": 77.219111
+      },
+      "destination": {
+        "code": "GZB",
+        "name": "GHAZIABAD",
+        "lat": 28.650072,
+        "lng": 77.431469
+      },
+      "runDays": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri"
+      ],
+      "distance": 25.4,
+      "duration": 50,
+      "avgSpeed": 30.5,
+      "maxSpeed": 148,
+      "totalHalts": 8,
+      "returnTrain": "64449"
+    },
+    "isLive": false,
+    "trackingMode": "none",
+    "currentLocation": {
+      "stationCode": "NDLS",
+      "sequence": 1,
+      "status": "at-station",
+      "isHalt": true,
+      "isActualPosition": false
+    },
+    "nextHalt": {
+      "stationCode": "CSB",
+      "stationName": "Shivaji Bridge",
+      "sequence": 2,
+      "distance": 1.3
+    },
+    "delayMinutes": 0,
+    "exceptions": [
+      {
+        "type": "CANCELLED",
+        "message": "This train service has been cancelled/discontinued."
+      }
+    ],
+    "route": [
+      {
+        "sequence": 1,
+        "stationCode": "NDLS",
+        "stationName": "New Delhi",
+        "isHalt": true,
+        "status": "at-station",
+        "scheduledDeparture": "2026-07-09T17:50:00+05:30",
+        "departureDay": 1,
+        "distance": 0,
+        "speedToNextStationKmph": 26,
+        "actualDeparture": "2026-07-09T17:50:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 2,
+        "stationCode": "CSB",
+        "stationName": "Shivaji Bridge",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T17:53:00+05:30",
+        "arrivalDay": 1,
+        "scheduledDeparture": "2026-07-09T17:54:00+05:30",
+        "departureDay": 1,
+        "distance": 1.3,
+        "speedToNextStationKmph": 24,
+        "actualArrival": "2026-07-09T17:53:00+05:30",
+        "delayArrival": 0,
+        "actualDeparture": "2026-07-09T17:54:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 3,
+        "stationCode": "TKJ",
+        "stationName": "Tilak Bridge",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T17:57:00+05:30",
+        "arrivalDay": 1,
+        "scheduledDeparture": "2026-07-09T17:58:00+05:30",
+        "departureDay": 1,
+        "distance": 2.5,
+        "speedToNextStationKmph": 28.8,
+        "actualArrival": "2026-07-09T17:57:00+05:30",
+        "delayArrival": 0,
+        "actualDeparture": "2026-07-09T17:58:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 4,
+        "stationCode": "MWC",
+        "stationName": "MANDAWALI CHANDER VIHAR HALT",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T18:03:00+05:30",
+        "arrivalDay": 1,
+        "scheduledDeparture": "2026-07-09T18:04:00+05:30",
+        "departureDay": 1,
+        "distance": 4.9,
+        "speedToNextStationKmph": 148,
+        "actualArrival": "2026-07-09T18:03:00+05:30",
+        "delayArrival": 0,
+        "actualDeparture": "2026-07-09T18:04:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 5,
+        "stationCode": "ANVR",
+        "stationName": "Anand Vihar Terminal",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T18:07:00+05:30",
+        "arrivalDay": 1,
+        "scheduledDeparture": "2026-07-09T18:08:00+05:30",
+        "departureDay": 1,
+        "distance": 12.3,
+        "speedToNextStationKmph": 63,
+        "actualArrival": "2026-07-09T18:07:00+05:30",
+        "delayArrival": 0,
+        "actualDeparture": "2026-07-09T18:08:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 6,
+        "stationCode": "CNJ",
+        "stationName": "Chander Nagar",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T18:10:00+05:30",
+        "arrivalDay": 1,
+        "scheduledDeparture": "2026-07-09T18:11:00+05:30",
+        "departureDay": 1,
+        "distance": 14.4,
+        "speedToNextStationKmph": 25.3,
+        "actualArrival": "2026-07-09T18:10:00+05:30",
+        "delayArrival": 0,
+        "actualDeparture": "2026-07-09T18:11:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 7,
+        "stationCode": "SBB",
+        "stationName": "Sahibabad Junction",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T18:20:00+05:30",
+        "arrivalDay": 1,
+        "scheduledDeparture": "2026-07-09T18:21:00+05:30",
+        "departureDay": 1,
+        "distance": 18.2,
+        "speedToNextStationKmph": 22.7,
+        "actualArrival": "2026-07-09T18:20:00+05:30",
+        "delayArrival": 0,
+        "actualDeparture": "2026-07-09T18:21:00+05:30",
+        "delayDeparture": 0
+      },
+      {
+        "sequence": 8,
+        "stationCode": "GZB",
+        "stationName": "GHAZIABAD",
+        "isHalt": true,
+        "status": "upcoming",
+        "scheduledArrival": "2026-07-09T18:40:00+05:30",
+        "arrivalDay": 1,
+        "distance": 25.4,
+        "actualArrival": "2026-07-09T18:40:00+05:30",
+        "delayArrival": 0
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-07-09T12:01:10+05:30",
+    "traceId": "dc07a7d2-0df5-4338-ac97-b9added388aa",
+    "source": "hybrid",
+    "executionTime": 5
+  }
+}

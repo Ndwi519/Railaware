@@ -1,0 +1,25 @@
+{
+  "scriptName": "validate-railradar-controlled.cjs",
+  "scriptVersion": "1.1.0-controlled",
+  "executionTimestamp": "2026-07-09T12:48:19.828Z",
+  "nodeVersion": "v24.14.0",
+  "operatingSystem": "Windows_NT 10.0.26200 x64",
+  "baseUrl": "https://api.railradar.in",
+  "endpointPath": "/v1/trains/:id/live",
+  "pollingIntervalSeconds": 75,
+  "plannedPollCount": 20,
+  "outputDirectory": "E:\\Railaware\\phase0_output",
+  "movingTrainNumberSelected": "12903",
+  "stationaryTrainNumberSelected": null,
+  "scriptSha256": "b3946c15529fba60a1fbcd29b4f96069e0d9e05a29705b52c4023e2570cb1735",
+  "movingTrainSelection": {
+    "trainNumber": "12903",
+    "status": "running",
+    "segmentProgress": 0.7021276595744612,
+    "previousStation": "MUZ",
+    "nextStation": "MTC",
+    "lastUpdatedAt": "2026-07-09T18:17:52+05:30",
+    "selectionTimestamp": "2026-07-09T12:48:21.358Z",
+    "selectionReason": "ideal-window"
+  }
+}

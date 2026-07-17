@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+coverage/
+
+# Environment variables — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+
+# Turbo cache
+.turbo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+phase0/logs/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+
+
+
+# Generated probe output
+probe-results.json
+probe_output.txt
+
+# Generated comparison output
+scratch_diff_output.txt
+scratch_diff_output2.txt
+
+# Generated test logs
+server-logs-*.txt
+
+# Runtime logs
+logs/
+server/logs/

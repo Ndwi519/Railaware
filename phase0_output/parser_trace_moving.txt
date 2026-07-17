@@ -1,0 +1,8 @@
+[2026-07-09T12:49:53.529Z] Candidate count: 1
+[2026-07-09T12:49:53.530Z] Selected object path: currentLocation. Reason: Only object matching topological schema.
+[2026-07-09T12:51:09.025Z] Candidate count: 1
+[2026-07-09T12:51:09.025Z] Selected object path: currentLocation. Reason: Only object matching topological schema.
+[2026-07-09T12:52:24.576Z] Candidate count: 1
+[2026-07-09T12:52:24.576Z] Selected object path: currentLocation. Reason: Only object matching topological schema.
+[2026-07-09T12:53:40.503Z] Candidate count: 1
+[2026-07-09T12:53:40.503Z] Selected object path: currentLocation. Reason: Only object matching topological schema.

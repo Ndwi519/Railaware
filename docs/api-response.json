@@ -1,0 +1,60 @@
+{
+  "observation": {
+    "status": "unknown",
+    "nearbyTrains": []
+  },
+  "risk": {
+    "level": "unknown"
+  },
+  "corridor": {
+    "corridorGeometry": [
+      { "lat": 26.9250088, "lng": 75.7810304 },
+      { "lat": 26.9247773, "lng": 75.7813074 },
+      { "lat": 26.9236868, "lng": 75.7826576 },
+      { "lat": 26.9234609, "lng": 75.7829331 },
+      { "lat": 26.9204954, "lng": 75.7866329 },
+      { "lat": 26.9187691, "lng": 75.7887865 },
+      { "lat": 26.9184288, "lng": 75.7892089 }
+    ],
+    "userSegmentFraction": 0.6854303913492023,
+    "segmentLengthKm": 1.0921687552839472,
+    "nearestBoundingStations": null,
+    "resolutionStatus": "UNRESOLVED",
+    "stationResolutionDetails": {
+      "status": "UNRESOLVED",
+      "previousStation": null,
+      "nextStation": null,
+      "confidence": null,
+      "attempts": [
+        {
+          "strategy": "OSM Route Relations",
+          "success": false,
+          "reason": "Overpass API returned no relations for the provided track geometry.",
+          "durationMs": 0
+        },
+        {
+          "strategy": "OSM Relation Members",
+          "success": false,
+          "reason": "No verified station codes found within generic relation members.",
+          "durationMs": 0
+        },
+        {
+          "strategy": "RailRadar Route Geometry",
+          "success": false,
+          "reason": "Provider route geometry only returns LineString arrays with no topological station markers. Cannot extract verified station codes without heuristics.",
+          "durationMs": 0
+        },
+        {
+          "strategy": "Cached Offline Railway Graph",
+          "success": false,
+          "reason": "Dataset unavailable. Proprietary GIS database linking OSM nodes to Indian Railways master datasets is required.",
+          "durationMs": 0
+        }
+      ]
+    }
+  },
+  "trains": [],
+  "metadata": {
+    "providerError": null
+  }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "pollNumber": 2,
+    "stationCode": "MUZ",
+    "nextStation": "UNKNOWN",
+    "segmentProgress": 0.6170212765957387,
+    "lastUpdatedAt": "2026-07-09T12:49:53.529Z",
+    "localTimestamp": 1783601393531
+  },
+  {
+    "pollNumber": 3,
+    "stationCode": "MUZ",
+    "nextStation": "UNKNOWN",
+    "segmentProgress": 0.7021276595744612,
+    "lastUpdatedAt": "2026-07-09T12:51:09.025Z",
+    "localTimestamp": 1783601469025
+  },
+  {
+    "pollNumber": 4,
+    "stationCode": "MUZ",
+    "nextStation": "UNKNOWN",
+    "segmentProgress": 0.7446808510638225,
+    "lastUpdatedAt": "2026-07-09T12:52:24.575Z",
+    "localTimestamp": 1783601544576
+  },
+  {
+    "pollNumber": 5,
+    "stationCode": "MUZ",
+    "nextStation": "UNKNOWN",
+    "segmentProgress": 0.6595744680851,
+    "lastUpdatedAt": "2026-07-09T12:53:40.503Z",
+    "localTimestamp": 1783601620504
+  }
+]

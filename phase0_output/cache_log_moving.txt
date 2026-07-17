@@ -1,0 +1,4 @@
+Poll 2 | ETag: undefined | Cache-Control: must-revalidate, no-store | Age: undefined | Last-Modified: undefined | Date: Thu, 09 Jul 2026 12:49:53 GMT | Trace-ID: 66b4b6ad-6f29-4787-8dbe-d24995ec60c1
+Poll 3 | ETag: undefined | Cache-Control: must-revalidate, no-store | Age: undefined | Last-Modified: undefined | Date: Thu, 09 Jul 2026 12:51:09 GMT | Trace-ID: 8db438c5-a4d8-4514-862e-686cfa1fc83e
+Poll 4 | ETag: undefined | Cache-Control: must-revalidate, no-store | Age: undefined | Last-Modified: undefined | Date: Thu, 09 Jul 2026 12:52:24 GMT | Trace-ID: 37bbd8d3-826f-4104-9636-dd054e40cc39
+Poll 5 | ETag: undefined | Cache-Control: must-revalidate, no-store | Age: undefined | Last-Modified: undefined | Date: Thu, 09 Jul 2026 12:53:40 GMT | Trace-ID: b43bf1ad-cd16-4047-a725-b0a312d2347a

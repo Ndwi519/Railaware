@@ -1,0 +1,23 @@
+{
+  "noise-threshold-meters": 10,
+  "bearing-variance-fail-threshold-degrees": 45,
+  "moving-train-number": "19665",
+  "stationary-train-number": "64450",
+  "discovery-locations": [
+    {
+      "type": "simple-section",
+      "from": "MBA",
+      "to": "KLAR"
+    },
+    {
+      "type": "busy-junction",
+      "from": "DDU",
+      "to": "BSB"
+    },
+    {
+      "type": "major-station",
+      "from": "NDLS",
+      "to": "NZM"
+    }
+  ]
+}
