@@ -124,6 +124,11 @@ describe('TrainDiscoveryService', () => {
     const result = await service.discoverTrain(10, 20);
 
     expect(result.discoveredTrains).toEqual([{ id: 'TRAIN-123' }]);
+    expect(mockMapper.map).toHaveBeenCalledTimes(1);
+    expect(mockMapper.map).toHaveBeenCalledWith({
+      status: 'SUCCESS',
+      discoveredTrains: [{ id: 'TRAIN-123' }]
+    }, expect.any(Object));
   });
 
   it('Case 4: should return trains as null if discovery is attempted but provider failure / throws', async () => {
@@ -143,5 +148,32 @@ describe('TrainDiscoveryService', () => {
 
     expect(result.discoveredTrains).toBeNull();
     expect(result.providerError).toBe('Rate Limit Exceeded');
+  });
+
+  it('should fall back gracefully if winningStrategyId has no registered mapper', async () => {
+    mockCorridorResolver.resolveNearest.mockResolvedValue({ id: 'corridor-1' });
+    mockStrategyManager.discover.mockResolvedValue({
+      winningStrategy: 'Mock Strategy',
+      winningStrategyId: 'unknown-strategy',
+      executedStrategies: ['unknown-strategy'],
+      skippedStrategies: [],
+      providerErrors: [],
+      diagnostics: [],
+      finalResult: {
+        status: 'SUCCESS',
+        discoveredTrains: [{ id: 'TRAIN-123' }]
+      }
+    });
+
+    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {});
+    
+    let result;
+    await expect((async () => {
+      result = await service.discoverTrain(10, 20);
+    })()).resolves.not.toThrow();
+
+    expect(result.trainTarget).toBeNull();
+    expect(result.journey).toBeNull();
+    expect(result.discoveredTrains).toEqual([{ id: 'TRAIN-123' }]);
   });
 });

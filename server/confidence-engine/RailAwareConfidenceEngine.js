@@ -34,7 +34,7 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
 
     // --- LOW constraints (overrides UNKNOWN/HIGH/MEDIUM) ---
     let forceLow = false;
-    
+
     // Evaluate explicit validation errors instead of inferring failure from status
     if (currentObservation.validationErrors && currentObservation.validationErrors.length > 0) {
       forceLow = true;
@@ -44,7 +44,7 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
     // Repeated HTTP gaps
     let gaps = 0;
     for (let i = 1; i < observationHistory.length; i++) {
-      const prevTime = observationHistory[i-1].recordedAt.getTime();
+      const prevTime = observationHistory[i - 1].recordedAt.getTime();
       const currTime = observationHistory[i].recordedAt.getTime();
       if (currTime - prevTime > 2 * 60 * 1000) {
         gaps++;
@@ -57,7 +57,7 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
 
     // --- MEDIUM constraints (overrides HIGH) ---
     let forceMedium = false;
-    
+
     // Missing topology is no longer an automatic LOW. It just reduces interpretability.
     if (!currentObservation.currentSegment || !currentObservation.currentSegment.previousStation) {
       forceMedium = true;
@@ -81,9 +81,9 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
       for (const past of observationHistory) {
         if (past.id === currentObservation.id) continue;
         if (
-          past.currentSegment && 
+          past.currentSegment &&
           past.currentSegment.previousStation.code === currentObservation.currentSegment.previousStation.code &&
-          past.segmentProgress !== null && 
+          past.segmentProgress !== null &&
           past.segmentProgress > currentObservation.segmentProgress &&
           past.recordedAt < currentObservation.recordedAt
         ) {
@@ -101,19 +101,19 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
     }
 
     // Combinations of MEDIUM evidence that materially reduce interpretability -> LOW
-    if ((!currentObservation.currentSegment || !currentObservation.currentSegment.previousStation) && 
-        (ageMs > this.staleThresholdMs || regressionFound)) {
+    if ((!currentObservation.currentSegment || !currentObservation.currentSegment.previousStation) &&
+      (ageMs > this.staleThresholdMs || regressionFound)) {
       forceLow = true;
       reasons.push('[Engineering decision] compounding missing topology and degraded state');
     }
 
     // --- Resolve Hierarchy ---
     if (level !== ConfidenceLevel.UNKNOWN || forceLow || forceMedium) {
-        if (forceLow) {
-            level = ConfidenceLevel.LOW;
-        } else if (forceMedium && level !== ConfidenceLevel.UNKNOWN) {
-            level = ConfidenceLevel.MEDIUM;
-        }
+      if (forceLow) {
+        level = ConfidenceLevel.LOW;
+      } else if (forceMedium && level !== ConfidenceLevel.UNKNOWN) {
+        level = ConfidenceLevel.MEDIUM;
+      }
     }
 
     // --- HIGH fallbacks ---
@@ -141,7 +141,10 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
   combine(topologyConfidence, observationConfidence) {
     const tConf = topologyConfidence || ConfidenceLevel.UNKNOWN;
     const oConf = observationConfidence || ConfidenceLevel.UNKNOWN;
-
+    // Defensive validation: unknown enum values are treated conservatively.
+    if (!(tConf in ConfidenceRanking) || !(oConf in ConfidenceRanking)) {
+      return ConfidenceLevel.UNKNOWN;
+    }
     if (tConf === ConfidenceLevel.UNKNOWN || oConf === ConfidenceLevel.UNKNOWN) {
       return ConfidenceLevel.UNKNOWN;
     }

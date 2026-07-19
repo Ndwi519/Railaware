@@ -42,7 +42,7 @@ describe('RailAwareConfidenceEngine', () => {
     expect(result.level).toBe(ConfidenceLevel.UNKNOWN);
     expect(result.reasons).toContain('[Engineering decision] observation absent');
   });
-
+  
   it('should return HIGH for a clean observation with sufficient history', () => {
     const history = [generateObs({ recordedAt: new Date(Date.now() - 60000) })];
     const obs = generateObs();
@@ -115,6 +115,13 @@ describe('RailAwareConfidenceEngine', () => {
   });
 
   describe('combine method', () => {
+    it('should return UNKNOWN for unrecognized confidence values', () => {
+      expect(engine.combine('INVALID', ConfidenceLevel.HIGH))
+        .toBe(ConfidenceLevel.UNKNOWN);
+
+      expect(engine.combine(ConfidenceLevel.LOW, 'INVALID'))
+        .toBe(ConfidenceLevel.UNKNOWN);
+    });
     it('should select lowest confidence when both are valid', () => {
       expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.MEDIUM)).toBe(ConfidenceLevel.MEDIUM);
       expect(engine.combine(ConfidenceLevel.LOW, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.LOW);
