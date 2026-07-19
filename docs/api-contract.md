@@ -15,7 +15,7 @@ type BackendResponse = {
     nextStation?: string | null;
     delayMinutes?: number | null;
     lastUpdatedAt?: string | null;
-    nearbyTrains: Array<{ id: string }>; // Legacy fallback
+    nearbyTrains: Array<{ id: string }> | null; // Legacy fallback (null if not attempted)
   };
   risk: {
     level: string; // 'unknown' | 'safe' | 'elevated' | 'imminent'
@@ -31,7 +31,7 @@ type BackendResponse = {
     resolutionStatus: string; // 'RESOLVED' | 'UNRESOLVED'
     stationResolutionDetails?: any;
   } | null;
-  trains: Array<{ id: string }>; // Actual trains returned by provider
+  trains: Array<{ id: string }> | null; // Actual trains returned by provider (null if not attempted)
   metadata: {
     providerError: string | null;
   }
@@ -60,3 +60,18 @@ The following fields were permanently removed from the UI contract because they 
 
 ## 4. Final Verified Contract
 The frontend is now strictly bound only to data deterministically emitted by the actual provider engines and properly filtered through the mapper. All speculative fields have been successfully removed without silent deletion of UI cards.
+
+## 5. Semantic Distinction for trains / nearbyTrains Array
+To satisfy Non-Negotiable Rule 10 (never communicate safety by omission), the API contract strictly distinguishes between unattempted train discovery and a verified empty discovery:
+
+| trains / nearbyTrains | Meaning | Action / Interpretation |
+| :--- | :--- | :--- |
+| `null` | Discovery not attempted OR failed | Do not assume safety. Show uncertainty (e.g. "Train discovery not performed", "Topological Gap", or "Currently Unavailable"). |
+| `[]` | Discovery attempted, no trains found | Verified zero trains. |
+| Populated Array | Discovery attempted, trains found | Verified active trains nearby. |
+
+### Provider Failure Semantics
+In a scenario where train discovery is attempted but the provider fails (e.g., due to rate limit, timeout, network error, or malformed data):
+- The returned `trains` / `nearbyTrains` value MUST be `null`.
+- The `metadata.providerError` property will be populated with the error message.
+- A client must interpret this `null` state as **unknown** rather than "no trains" and show an appropriate error / unavailable banner.

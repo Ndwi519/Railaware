@@ -1,7 +1,7 @@
 {
   "observation": {
     "status": "unknown",
-    "nearbyTrains": []
+    "nearbyTrains": null
   },
   "risk": {
     "level": "unknown"
@@ -53,7 +53,7 @@
       ]
     }
   },
-  "trains": [],
+  "trains": null,
   "metadata": {
     "providerError": null
   }

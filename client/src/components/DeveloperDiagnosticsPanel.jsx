@@ -8,9 +8,13 @@ export default function DeveloperDiagnosticsPanel({
   observationData,
   observationStatus,
   onApplyCoordinates,
-  onRefresh
+  onRefresh,
+  isOpen: propsIsOpen,
+  setIsOpen: propsSetIsOpen
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [localIsOpen, setLocalIsOpen] = useState(false);
+  const isOpen = propsIsOpen !== undefined ? propsIsOpen : localIsOpen;
+  const setIsOpen = propsSetIsOpen !== undefined ? propsSetIsOpen : setLocalIsOpen;
   const [latInput, setLatInput] = useState("");
   const [lngInput, setLngInput] = useState("");
   const [validationError, setValidationError] = useState("");

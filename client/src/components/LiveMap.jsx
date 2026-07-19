@@ -37,7 +37,7 @@ function Recenter({ position, autoFollow, hasCorridor }) {
   const map = useMap();
   useEffect(() => {
     if (position && autoFollow && !hasCorridor) {
-      map.flyTo(position, map.getZoom() > 16 ? map.getZoom() : 17, { animate: true, duration: 1 });
+      map.setView(position, map.getZoom() > 16 ? map.getZoom() : 17, { animate: false });
     }
   }, [position, map, autoFollow, hasCorridor]);
   return null;
@@ -69,6 +69,36 @@ function CorridorViewport({ corridor, position, snappedPoint, autoFollow }) {
   return null;
 }
 
+/**
+ * MapResizer listens for changes in the MapContainer's element size (via ResizeObserver)
+ * and triggers Leaflet to update its internal cache dimensions using invalidateSize({ pan: false }).
+ * 
+ * To preserve the current viewport instead of snapping to the tracked GPS marker,
+ * we capture the current geographic center (where the user has manually panned or zoomed)
+ * BEFORE Leaflet invalidates its cache, and then explicitly call setView() to restore that
+ * exact geographic center to the visual center of the newly-resized map viewport.
+ * This ensures that manual panning continues to work and the map remains stable during transitions.
+ */
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    
+    const resizeObserver = new ResizeObserver(() => {
+      const center = map.getCenter();
+      map.invalidateSize({ pan: false });
+      map.setView(center, map.getZoom(), { animate: false });
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [map]);
+  return null;
+}
+
+
 // Track if user intentionally panned
 function MapInteractions({ setAutoFollow, isSimulating, onMapClick }) {
   useMapEvents({
@@ -85,7 +115,7 @@ function MapInteractions({ setAutoFollow, isSimulating, onMapClick }) {
   return null;
 }
 
-export default function LiveMap({ position, isSimulating, onMapClick, observationData }) {
+export default function LiveMap({ position, isSimulating, onMapClick, observationData, isDiagnosticsOpen }) {
   const [autoFollow, setAutoFollow] = useState(true);
   
   const corridor = observationData?.corridor;
@@ -98,13 +128,20 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
 
   return (
     <div className="relative h-full w-full">
-      <MapContainer 
-        center={position || defaultCenter} 
-        zoom={17} 
-        maxZoom={19}
-        style={{ height: '100%', width: '100%', zIndex: 0 }}
-        zoomControl={false}
+      <div 
+        className="relative h-full"
+        style={{
+          width: isDiagnosticsOpen ? 'calc(100% - 384px)' : '100%'
+        }}
       >
+        <MapContainer 
+          center={position || defaultCenter} 
+          zoom={17} 
+          maxZoom={19}
+          className="w-full h-full"
+          style={{ zIndex: 0 }}
+          zoomControl={false}
+        >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; OpenStreetMap contributors &copy; CARTO'
@@ -112,6 +149,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
         />
         <Recenter position={position} autoFollow={autoFollow} hasCorridor={Boolean(corridor?.corridorGeometry?.length)} />
         <CorridorViewport corridor={corridor} position={position} snappedPoint={snappedPoint} autoFollow={autoFollow} />
+        <MapResizer />
         <MapInteractions setAutoFollow={setAutoFollow} isSimulating={isSimulating} onMapClick={onMapClick} />
         
         {/* Railway Corridor Polyline */}
@@ -202,6 +240,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
           Center on Me
         </button>
       )}
+      </div>
     </div>
   );
 }

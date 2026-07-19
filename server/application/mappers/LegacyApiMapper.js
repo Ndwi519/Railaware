@@ -37,7 +37,11 @@ class LegacyApiMapper {
             nextStation: (observation.currentSegment && observation.currentSegment.nextStation) ? observation.currentSegment.nextStation.code : null,
             delayMinutes: observation.delayMinutes,
             lastUpdatedAt: observation.lastUpdatedAt,
-            nearbyTrains: discoveryContext ? discoveryContext.discoveredTrains : []
+            nearbyTrains: (discoveryContext && discoveryContext.discoveredTrains !== undefined) ? discoveryContext.discoveredTrains : null
+        };
+    } else if (discoveryContext && discoveryContext.discoveredTrains === null && discoveryContext.corridor) {
+        legacyObservation = {
+            nearbyTrains: null
         };
     }
 
@@ -61,7 +65,7 @@ class LegacyApiMapper {
       risk: legacyRisk,
       awareness,
       corridor: discoveryContext ? discoveryContext.corridor : null,
-      trains: discoveryContext ? discoveryContext.discoveredTrains : [],
+      trains: (discoveryContext && discoveryContext.discoveredTrains !== undefined) ? discoveryContext.discoveredTrains : null,
       metadata: { 
         providerError: (discoveryContext && discoveryContext.providerError) ? discoveryContext.providerError : null,
         executionTrace: { stages: diagnostics },

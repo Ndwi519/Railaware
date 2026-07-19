@@ -91,7 +91,11 @@ class TrainDiscoveryService {
       trainTarget: mappedDomain.trainTarget,
       journey: mappedDomain.journey,
       corridor: legacyCorridor,
-      discoveredTrains: executionState.finalResult?.discoveredTrains || [],
+      discoveredTrains: executionState.finalResult
+        ? (executionState.finalResult.discoveredTrains || [])
+        : (executionState.providerErrors.length > 0
+            ? null
+            : ((executionState.executedStrategies || []).length > 0 ? [] : null)),
       providerError: executionState.providerErrors.length > 0 ? executionState.providerErrors[0] : null,
       strategyDiagnostics: executionState.diagnostics,
     };

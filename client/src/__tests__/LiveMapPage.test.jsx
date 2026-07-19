@@ -272,4 +272,52 @@ describe('LiveMapPage', () => {
         });
         expect(global.fetch).toHaveBeenCalledTimes(7);
     });
+
+    it('renders Train discovery not performed state when trains is null', async () => {
+        global.navigator.geolocation.watchPosition.mockImplementationOnce((success) => {
+            success({ coords: { latitude: 10, longitude: 20 } });
+            return 123;
+        });
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                observation: { },
+                awareness: { status: 'UNKNOWN' },
+                corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
+                trains: null,
+                metadata: { providerError: null }
+            })
+        });
+
+        await act(async () => {
+            render(<LiveMapPage />);
+        });
+
+        expect(await screen.findByText(/Train discovery not performed/i)).toBeInTheDocument();
+    });
+
+    it('renders Currently Unavailable state when providerError is populated', async () => {
+        global.navigator.geolocation.watchPosition.mockImplementationOnce((success) => {
+            success({ coords: { latitude: 10, longitude: 20 } });
+            return 123;
+        });
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                observation: { },
+                awareness: { status: 'UNKNOWN' },
+                corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
+                trains: null,
+                metadata: { providerError: 'Rate Limit Exceeded' }
+            })
+        });
+
+        await act(async () => {
+            render(<LiveMapPage />);
+        });
+
+        expect(await screen.findByText(/Currently Unavailable/i)).toBeInTheDocument();
+    });
 });

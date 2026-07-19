@@ -60,11 +60,12 @@ describe('RailAwareService Safety Regression', () => {
   const journeyToTarget = { targetStation: { code: 'TARGET' } };
 
   const arrangeNoTrainDiscovery = (corridor) => {
+    const isResolved = corridor && corridor.stationResolutionDetails?.status === 'RESOLVED';
     mockDiscoveryService.discoverTrain.mockResolvedValue({
       trainTarget: null,
       journey: null,
       corridor,
-      discoveredTrains: [],
+      discoveredTrains: isResolved ? [] : null,
       providerError: null,
       strategyDiagnostics: [],
     });
@@ -120,6 +121,7 @@ describe('RailAwareService Safety Regression', () => {
     expect(result.corridor).toBeNull();
     expect(result.risk).toBeNull();
     expect(result.observation).toBeNull();
+    expect(result.trains).toBeNull();
     expect(mapper.lastApplicationResult.confidence).toBeNull();
   });
 
@@ -133,6 +135,17 @@ describe('RailAwareService Safety Regression', () => {
     expect(result.risk.level).toBe(RiskLevel.UNKNOWN.toLowerCase());
     expect(mapper.lastApplicationResult.confidence.level).toBe(ConfidenceLevel.UNKNOWN);
     expect(result.risk.explanation).toBe('[Engineering decision] Unable to estimate because no journey context is available.');
+    expect(result.trains).toBeNull();
+    expect(result.observation).toEqual({
+      trainId: 'UNKNOWN',
+      status: TrainStatus.UNKNOWN,
+      segmentProgress: null,
+      previousStation: null,
+      nextStation: null,
+      delayMinutes: null,
+      lastUpdatedAt: null,
+      nearbyTrains: null,
+    });
   });
 
   it('3. corridor + resolved topology + zero trains -> UNKNOWN', async () => {
