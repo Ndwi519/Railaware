@@ -64,4 +64,51 @@ describe('TrainEstimator', () => {
     expect(result.distanceMetres).toBe(2000);
     expect(result.approaching).toBe(false);
   });
+
+  it('Defensive Case: segmentProgress < 0 is clamped to 0', () => {
+    const obs = {
+      ...mockObservation,
+      segmentProgress: -0.5
+    };
+    const result = estimateTrainAwareness(mockJourney, obs, mockCorridor, mockConfidence);
+    // Clamped progress = 0. Train is at previous station A (1000). Distance to target B (5000) is 4000.
+    expect(result.trainAlongTrackDistanceMetres).toBe(1000);
+    expect(result.distanceMetres).toBe(4000);
+  });
+
+  it('Defensive Case: segmentProgress > 1 is clamped to 1', () => {
+    const obs = {
+      ...mockObservation,
+      segmentProgress: 1.5
+    };
+    const result = estimateTrainAwareness(mockJourney, obs, mockCorridor, mockConfidence);
+    // Clamped progress = 1. Train is at next station C (9000). Distance to target B (5000) is 4000.
+    expect(result.trainAlongTrackDistanceMetres).toBe(9000);
+    expect(result.distanceMetres).toBe(4000);
+  });
+
+  it('Defensive Case: non-numeric segmentProgress defaults to 0', () => {
+    const obs = {
+      ...mockObservation,
+      segmentProgress: 'invalid-string'
+    };
+    const result = estimateTrainAwareness(mockJourney, obs, mockCorridor, mockConfidence);
+    // Progress defaults to 0. Train is at previous station A (1000).
+    expect(result.trainAlongTrackDistanceMetres).toBe(1000);
+    expect(result.distanceMetres).toBe(4000);
+  });
+
+  it('Defensive Case: non-finite station alongTrackDistanceMetres returns fallback nulls', () => {
+    const badCorridor = {
+      stations: [
+        { feature: { station: { code: 'A' } }, alongTrackDistanceMetres: 1000 },
+        { feature: { station: { code: 'B' } }, alongTrackDistanceMetres: NaN },
+        { feature: { station: { code: 'C' } }, alongTrackDistanceMetres: 9000 },
+      ]
+    };
+    const result = estimateTrainAwareness(mockJourney, mockObservation, badCorridor, mockConfidence);
+    expect(result.trainAlongTrackDistanceMetres).toBeNull();
+    expect(result.userAlongTrackDistanceMetres).toBeNull();
+    expect(result.distanceMetres).toBeNull();
+  });
 });

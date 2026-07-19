@@ -3,7 +3,7 @@
  * @responsibility Calculate geographic distance and approach estimations for a train relative to a target station.
  * 
  * INPUTS:
- * 1. journey (Object): The user's active journey context.
+ * 1. journey (Object): The user's active journey context containing target station.
  * 2. observation (Object): The normalized factual state of the train.
  * 3. corridor (Object): The geographic track and resolved stations.
  * 
@@ -16,11 +16,22 @@
  * - lastUpdatedAt (Date|null): Timestamp of the provider data.
  */
 
-import { ConfidenceLevel, TrainStatus } from '../domain/types/enums.js';
+import { TrainStatus } from '../domain/types/enums.js';
+
+const DIRECTION = Object.freeze({
+  TOWARDS_END: 'TOWARDS_END',
+  TOWARDS_START: 'TOWARDS_START',
+  UNKNOWN: 'UNKNOWN'
+});
 
 /**
- * Pure function to estimate train spatial properties.
+ * Pure function to estimate train spatial properties relative to a target user station.
  * Deterministic and fully unit-testable.
+ * 
+ * @param {Object} journey - The user's active journey context containing target station.
+ * @param {Object} observation - The normalized factual state of the train.
+ * @param {Object} corridor - The resolved railway corridor containing geo stations.
+ * @returns {Readonly<Object>} The frozen estimation results.
  */
 function estimateTrainAwareness(journey, observation, corridor) {
   const estimation = {
@@ -29,7 +40,7 @@ function estimateTrainAwareness(journey, observation, corridor) {
     distanceMetres: null,
     direction: null,
     approaching: null,
-    lastUpdatedAt: observation ? observation.recordedAt : null
+    lastUpdatedAt: (observation && observation.recordedAt instanceof Date) ? observation.recordedAt : null
   };
 
   if (!observation || !journey) {
@@ -47,14 +58,18 @@ function estimateTrainAwareness(journey, observation, corridor) {
   }
 
   // Missing topology / geometry
-  if (!observation.currentSegment || !corridor || !corridor.stations || !Array.isArray(corridor.stations)) {
+  if (!observation.currentSegment || !corridor || !Array.isArray(corridor.stations)) {
     return Object.freeze(estimation);
   }
 
   // Find user's station
-  const targetCode = journey.targetStation.code;
-  const userStationData = corridor.stations.find(s => s.feature && s.feature.station && s.feature.station.code === targetCode);
-  if (!userStationData) {
+  const targetCode = journey.targetStation?.code;
+  if (!targetCode) {
+    return Object.freeze(estimation);
+  }
+
+  const userStationData = corridor.stations.find(s => s?.feature?.station?.code === targetCode);
+  if (!userStationData || !Number.isFinite(userStationData.alongTrackDistanceMetres)) {
     return Object.freeze(estimation);
   }
   
@@ -62,35 +77,46 @@ function estimateTrainAwareness(journey, observation, corridor) {
   estimation.userAlongTrackDistanceMetres = userDistance;
 
   // Find train's location
-  const prevCode = observation.currentSegment.previousStation.code;
-  const nextCode = observation.currentSegment.nextStation ? observation.currentSegment.nextStation.code : null;
+  const prevCode = observation.currentSegment.previousStation?.code;
+  const nextCode = observation.currentSegment.nextStation?.code;
   
-  const prevData = corridor.stations.find(s => s.feature && s.feature.station && s.feature.station.code === prevCode);
-  const nextData = nextCode ? corridor.stations.find(s => s.feature && s.feature.station && s.feature.station.code === nextCode) : null;
-
-  if (!prevData) {
+  if (!prevCode) {
     return Object.freeze(estimation);
   }
 
+  const prevData = corridor.stations.find(s => s?.feature?.station?.code === prevCode);
+  if (!prevData || !Number.isFinite(prevData.alongTrackDistanceMetres)) {
+    return Object.freeze(estimation);
+  }
+
+  const nextData = nextCode ? corridor.stations.find(s => s?.feature?.station?.code === nextCode) : null;
   let trainDistance = prevData.alongTrackDistanceMetres;
   let direction = null;
 
-  if (nextData) {
-    direction = nextData.alongTrackDistanceMetres >= prevData.alongTrackDistanceMetres ? 'TOWARDS_END' : 'TOWARDS_START';
-    const progress = (typeof observation.segmentProgress === 'number') ? observation.segmentProgress : 0;
+  if (nextData && Number.isFinite(nextData.alongTrackDistanceMetres)) {
+    direction = nextData.alongTrackDistanceMetres >= prevData.alongTrackDistanceMetres 
+      ? DIRECTION.TOWARDS_END 
+      : DIRECTION.TOWARDS_START;
+
+    const progress = (typeof observation.segmentProgress === 'number' && Number.isFinite(observation.segmentProgress)) 
+      ? observation.segmentProgress 
+      : 0;
+
+    // Clamp progress: 0 <= progress <= 1
+    const clampedProgress = Math.max(0, Math.min(1, progress));
     const segmentLength = nextData.alongTrackDistanceMetres - prevData.alongTrackDistanceMetres;
-    trainDistance = prevData.alongTrackDistanceMetres + (segmentLength * progress);
+    trainDistance = prevData.alongTrackDistanceMetres + (segmentLength * clampedProgress);
   } else {
-    direction = 'UNKNOWN'; 
+    direction = DIRECTION.UNKNOWN; 
   }
 
   estimation.trainAlongTrackDistanceMetres = Math.round(trainDistance);
   estimation.direction = direction;
   estimation.distanceMetres = Math.round(Math.abs(userDistance - trainDistance));
 
-  if (direction === 'TOWARDS_END') {
+  if (direction === DIRECTION.TOWARDS_END) {
     estimation.approaching = userDistance >= trainDistance;
-  } else if (direction === 'TOWARDS_START') {
+  } else if (direction === DIRECTION.TOWARDS_START) {
     estimation.approaching = userDistance <= trainDistance;
   } else {
     estimation.approaching = null;

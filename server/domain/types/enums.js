@@ -75,6 +75,18 @@ const EvidenceSource = Object.freeze({
   GEOMETRIC_PROJECTION: 'GEOMETRIC_PROJECTION'
 });
 
+/**
+ * Centralized numerical ranking for confidence levels.
+ * UNKNOWN has the lowest score (dominant in conservative combination).
+ * @enum {number}
+ */
+const ConfidenceRanking = Object.freeze({
+  [ConfidenceLevel.UNKNOWN]: 0,
+  [ConfidenceLevel.LOW]: 1,
+  [ConfidenceLevel.MEDIUM]: 2,
+  [ConfidenceLevel.HIGH]: 3
+});
+
 module.exports = {
   ConfidenceLevel,
   RiskLevel,
@@ -82,5 +94,6 @@ module.exports = {
   DiscoveryStatus,
   ResolutionStatus,
   ResolutionMethod,
-  EvidenceSource
+  EvidenceSource,
+  ConfidenceRanking
 };

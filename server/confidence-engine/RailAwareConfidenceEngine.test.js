@@ -113,4 +113,25 @@ describe('RailAwareConfidenceEngine', () => {
     expect(result.level).toBe(ConfidenceLevel.LOW);
     expect(result.reasons).toContain('[Evidence-backed] repeated HTTP acquisition gaps');
   });
+
+  describe('combine method', () => {
+    it('should select lowest confidence when both are valid', () => {
+      expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.MEDIUM)).toBe(ConfidenceLevel.MEDIUM);
+      expect(engine.combine(ConfidenceLevel.LOW, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.LOW);
+      expect(engine.combine(ConfidenceLevel.MEDIUM, ConfidenceLevel.LOW)).toBe(ConfidenceLevel.LOW);
+      expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.HIGH);
+    });
+
+    it('should return UNKNOWN if either input is UNKNOWN', () => {
+      expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.UNKNOWN)).toBe(ConfidenceLevel.UNKNOWN);
+      expect(engine.combine(ConfidenceLevel.UNKNOWN, ConfidenceLevel.LOW)).toBe(ConfidenceLevel.UNKNOWN);
+      expect(engine.combine(ConfidenceLevel.UNKNOWN, ConfidenceLevel.UNKNOWN)).toBe(ConfidenceLevel.UNKNOWN);
+    });
+
+    it('should handle null/missing values as UNKNOWN', () => {
+      expect(engine.combine(null, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.UNKNOWN);
+      expect(engine.combine(ConfidenceLevel.LOW, null)).toBe(ConfidenceLevel.UNKNOWN);
+      expect(engine.combine(null, null)).toBe(ConfidenceLevel.UNKNOWN);
+    });
+  });
 });

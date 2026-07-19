@@ -2,7 +2,7 @@ const { createProviderSnapshot } = require('../../domain/models/ProviderSnapshot
 const { createObservation } = require('../../domain/models/Observation.js');
 const { createTrain } = require('../../domain/models/Train.js');
 const { createConfidenceAssessment } = require('../../domain/models/ConfidenceAssessment.js');
-const { ConfidenceLevel } = require('../../domain/types/enums.js');
+const { ConfidenceLevel, TrainStatus } = require('../../domain/types/enums.js');
 
 class RailAwareService {
   constructor({ discoveryService, provider, interpreter, store, confidenceEngine, riskEngine, recommendationEngine, mapper }) {
@@ -20,6 +20,9 @@ class RailAwareService {
    * Orchestrates the evaluation of a location through the independent domain engines.
    */
   async evaluateLocation(lat, lng) {
+    // Interoperability Constraint: TrainEstimator.js is an ES Module while RailAwareService.js is a CommonJS module.
+    // Dynamic import() inside evaluateLocation is required as CommonJS cannot statically require ESM modules.
+    const { estimateTrainAwareness } = await import('../../awareness-engine/TrainEstimator.js');
     const trace = { stages: [], startTime: Date.now() };
     const addTrace = (stage, status, decision, reason, metadata = {}) => {
       trace.stages.push({
@@ -39,8 +42,6 @@ class RailAwareService {
     let journey = null;
 
     try {
-      if (lat === 90.001) throw new Error('Overpass API timeout');
-      if (lat === 90.002) throw new Error('Overpass API rate limit exceeded');
       discoveryContext = await this.discoveryService.discoverTrain(lat, lng);
       addTrace('Corridor Resolution', discoveryContext.corridor ? 'SUCCESS' : 'FAILED', discoveryContext.corridor ? 'Proceed' : 'Halt', discoveryContext.corridor ? 'Corridor found' : 'No track nearby');
       if (discoveryContext.corridor) {
@@ -50,9 +51,6 @@ class RailAwareService {
       journey = discoveryContext.journey;
     } catch (e) {
       // Overpass 429/504 or other discovery failure
-      const { createConfidenceAssessment } = require('../../domain/models/ConfidenceAssessment.js');
-      const { ConfidenceLevel } = require('../../domain/types/enums.js');
-      
       const awarenessWrapper = {
         level: 'UNKNOWN', // Duck-typed for legacy mapper compatibility
         reasons: ['[Engineering decision] API unavailable, cannot resolve topology'],
@@ -109,10 +107,6 @@ class RailAwareService {
       // Zero trains returned by the provider is a negative result, not positive confirmation of safety.
       // Both UNRESOLVED topology and RESOLVED+zero-trains must therefore produce UNKNOWN risk.
       // The two states are distinguished via confidence.level and observation.status (see reasons below).
-      const { createObservation } = require('../../domain/models/Observation.js');
-      const { createConfidenceAssessment } = require('../../domain/models/ConfidenceAssessment.js');
-      const { ConfidenceLevel, TrainStatus } = require('../../domain/types/enums.js');
-
       const isResolved = discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED';
       const topologyConfidence = discoveryContext.corridor.stationResolutionDetails?.confidence || ConfidenceLevel.UNKNOWN;
       const observationConfidence = ConfidenceLevel.HIGH;
@@ -125,18 +119,10 @@ class RailAwareService {
         validationErrors: isResolved ? [] : ['[Engineering decision] No train target identified on the requested corridor']
       });
 
-      const rank = { 'UNKNOWN': 0, 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3 };
-      let overallConfidenceLevel = ConfidenceLevel.UNKNOWN;
-      if (topologyConfidence !== ConfidenceLevel.UNKNOWN && observationConfidence !== ConfidenceLevel.UNKNOWN) {
-        if (rank[topologyConfidence] <= rank[observationConfidence]) {
-          overallConfidenceLevel = topologyConfidence;
-        } else {
-          overallConfidenceLevel = observationConfidence;
-        }
-      }
+      const overallConfidenceLevel = this.confidenceEngine.combine(topologyConfidence, observationConfidence);
 
       const confidence = createConfidenceAssessment({
-        level: overallConfidenceLevel, // fallback
+        level: overallConfidenceLevel,
         topologyConfidence,
         observationConfidence,
         overallConfidence: overallConfidenceLevel,
@@ -147,7 +133,6 @@ class RailAwareService {
       });
 
       // Integrate TrainEstimator for Case A / Case B
-      const { estimateTrainAwareness } = await import('../../awareness-engine/TrainEstimator.js');
       const estimation = estimateTrainAwareness(journey, observation, discoveryContext.corridor);
 
       // The RiskEngine enforces UNKNOWN confidence → UNKNOWN risk (line 23 of RailAwareRiskEngine).
@@ -168,18 +153,6 @@ class RailAwareService {
     let liveData = null;
     let metadata = { httpStatusCode: 200, timestamp: new Date().toISOString() };
     try {
-      if (lat === 90.003) {
-          const { ProviderError } = require('../../utils/index.js');
-          const e = new ProviderError('Rate Limited'); e.status = 429; throw e;
-      }
-      if (lat === 90.004) {
-          const { ProviderError } = require('../../utils/index.js');
-          const e = new ProviderError('Unauthorized'); e.status = 401; throw e;
-      }
-      if (lat === 90.005) {
-          const { ProviderError } = require('../../utils/index.js');
-          throw new ProviderError('Malformed payload');
-      }
       if (discoveryContext && discoveryContext.strategyDiagnostics) {
         discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, { elapsedTimeMs: d.elapsedTimeMs, providerRequests: d.providerRequests }));
       }
@@ -233,15 +206,7 @@ class RailAwareService {
     const observationConfidence = obsConfAssessment.level;
     const topologyConfidence = discoveryContext.corridor?.stationResolutionDetails?.confidence || ConfidenceLevel.UNKNOWN;
 
-    const rank = { 'UNKNOWN': 0, 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3 };
-    let overallConfidenceLevel = ConfidenceLevel.UNKNOWN;
-    if (topologyConfidence !== ConfidenceLevel.UNKNOWN && observationConfidence !== ConfidenceLevel.UNKNOWN) {
-      if (rank[topologyConfidence] <= rank[observationConfidence]) {
-        overallConfidenceLevel = topologyConfidence;
-      } else {
-        overallConfidenceLevel = observationConfidence;
-      }
-    }
+    const overallConfidenceLevel = this.confidenceEngine.combine(topologyConfidence, observationConfidence);
 
     const confidence = createConfidenceAssessment({
       level: overallConfidenceLevel,
@@ -253,7 +218,6 @@ class RailAwareService {
     });
 
     // Integrate TrainEstimator for Case C
-    const { estimateTrainAwareness } = await import('../../awareness-engine/TrainEstimator.js');
     const estimation = estimateTrainAwareness(journey, observation, discoveryContext.corridor);
 
     // 6. Evaluate Awareness

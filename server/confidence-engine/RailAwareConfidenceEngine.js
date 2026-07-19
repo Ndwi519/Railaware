@@ -1,5 +1,5 @@
 const ConfidenceEngine = require('../domain/contracts/ConfidenceEngine.js');
-const { ConfidenceLevel, TrainStatus } = require('../domain/types/enums.js');
+const { ConfidenceLevel, TrainStatus, ConfidenceRanking } = require('../domain/types/enums.js');
 const { createConfidenceAssessment } = require('../domain/models/ConfidenceAssessment.js');
 
 class RailAwareConfidenceEngine extends ConfidenceEngine {
@@ -128,6 +128,25 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
       reasons,
       assessedAt: new Date()
     });
+  }
+
+  /**
+   * Combines two confidence levels, returning the most conservative confidence level.
+   * Treats UNKNOWN as dominant (returns UNKNOWN if either input is UNKNOWN or null).
+   * 
+   * @param {string|null} topologyConfidence - The confidence of the resolved topology.
+   * @param {string|null} observationConfidence - The confidence of the active train observation.
+   * @returns {string} The combined conservative confidence level.
+   */
+  combine(topologyConfidence, observationConfidence) {
+    const tConf = topologyConfidence || ConfidenceLevel.UNKNOWN;
+    const oConf = observationConfidence || ConfidenceLevel.UNKNOWN;
+
+    if (tConf === ConfidenceLevel.UNKNOWN || oConf === ConfidenceLevel.UNKNOWN) {
+      return ConfidenceLevel.UNKNOWN;
+    }
+
+    return ConfidenceRanking[tConf] <= ConfidenceRanking[oConf] ? tConf : oConf;
   }
 }
 
