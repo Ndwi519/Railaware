@@ -18,36 +18,52 @@ const { DiscoveryStatus, ResolutionStatus } = require('../../domain/types/enums.
 
 class TrainDiscoveryService {
   /**
-   * @param {Object} corridorResolver
-   * @param {Object} stationResolver
-   * @param {Object} strategyManager
-   * @param {Record<string, Object>} discoveryMappers  Keyed by strategy id.
+   * @param {Object} options
+   * @param {Object} options.corridorResolver
+   * @param {Object} options.stationResolver
+   * @param {Object} options.strategyManager
+   * @param {Record<string, Object>} options.discoveryMappers
+   * @param {Object} options.directionalInference
+   * @param {Object} options.branchEvidenceBuilder
+   * @param {Object} options.routeSelection
+   * @param {Object} options.routeContextBuilder
    */
-  constructor(corridorResolver, stationResolver, strategyManager, discoveryMappers) {
+  constructor({
+    corridorResolver,
+    stationResolver,
+    strategyManager,
+    discoveryMappers,
+    directionalInference,
+    branchEvidenceBuilder,
+    routeSelection,
+    routeContextBuilder
+  }) {
     this.corridorResolver = corridorResolver;
     this.stationResolver = stationResolver;
     this.strategyManager = strategyManager;
     this.discoveryMappers = discoveryMappers;
+    this.directionalInference = directionalInference;
+    this.branchEvidenceBuilder = branchEvidenceBuilder;
+    this.routeSelection = routeSelection;
+    this.routeContextBuilder = routeContextBuilder;
   }
 
   /**
-   * Resolves the nearest corridor, creates the immutable DiscoveryContext,
-   * and delegates to the StrategyManager.
-   * @param {number} lat
-   * @param {number} lng
-   * @returns {Promise<Object>}
+   * Orchestrates the routing pipeline and resolves train state.
+   * @param {Object} discoveryContext
+   * @returns {Promise<Object>} containing the RoutingPipelineResult and train data
    */
-  async discoverTrain(lat, lng) {
-    const location = deepFreeze({ lat, lng });
-
-    // 1. Resolve Nearest Corridor
-    const nearestCorridor = await this.corridorResolver.resolveNearest(location, 500);
+  async discoverTrain(discoveryContext) {
+    // 1. Resolve Nearest Corridor (Projection)
+    const { latitude, longitude } = discoveryContext.observation;
+    const location = deepFreeze({ lat: latitude, lng: longitude });
+    const resolutionResult = await this.corridorResolver.resolveNearest(location, 1500);
+    const nearestCorridor = resolutionResult ? deepFreeze({ ...resolutionResult.nearestCorridor }) : null;
     const corridor = nearestCorridor ? deepFreeze({ ...nearestCorridor }) : null;
 
-    // 2. Create Immutable DiscoveryContext
-    // RequestCache is intentionally not frozen — it manages mutable per-request state.
+    // Build the context for Strategy Manager
     const cache = new RequestCache();
-    const context = deepFreeze({
+    const strategyContext = deepFreeze({
       requestId: crypto.randomUUID(),
       location,
       corridor,
@@ -55,23 +71,69 @@ class TrainDiscoveryService {
       cache,
     });
 
-    // 3. Delegate to Strategy Manager
-    const executionState = await this.strategyManager.discover(context);
+    // Strategy Manager execution
+    const executionState = await this.strategyManager.discover(strategyContext);
 
     let mappedDomain = { trainTarget: null, journey: null };
 
-    // 4. Transform provider DTOs to domain models if a strategy succeeded
     if (executionState.finalResult && executionState.finalResult.status === DiscoveryStatus.SUCCESS) {
       const mapper = this.discoveryMappers[executionState.winningStrategyId];
       if (mapper) {
-        mappedDomain = mapper.map(executionState.finalResult, context);
+        mappedDomain = mapper.map(executionState.finalResult, strategyContext);
       }
     }
 
-    // 5. Assemble legacy corridor shape for backward-compatible API response
+    // Execute Routing Pipeline
+    let projectionResult = null;
+    let directionInferenceResult = null;
+    let routeSelectionDecision = null;
+    let routeContext = null;
+
     let legacyCorridor = null;
+
     if (nearestCorridor) {
       legacyCorridor = { ...nearestCorridor };
+
+      if (resolutionResult.assembledCorridor) {
+        try {
+          projectionResult = resolutionResult.projectionResult;
+
+          directionInferenceResult = this.directionalInference.inferDirection(
+            discoveryContext,
+            projectionResult
+          );
+
+          const evidence = this.branchEvidenceBuilder.buildEvidence(
+            projectionResult,
+            directionInferenceResult,
+            resolutionResult.assembledCorridor,
+            discoveryContext.routingState
+          );
+
+          routeSelectionDecision = this.routeSelection.evaluate(evidence);
+
+          if (routeSelectionDecision.status === 'SELECTED') {
+            routeContext = this.routeContextBuilder.buildContext(
+              routeSelectionDecision,
+              resolutionResult.assembledCorridor,
+              projectionResult.corridorSegmentIndex,
+              projectionResult.alongTrackDistanceMetres,
+              resolutionResult.stationsOutput
+            );
+          }
+        } catch (e) {
+          const logger = require('../utils/logger.js');
+          logger.error('Routing Pipeline Error', e);
+        }
+      }
+
+      // ==========================================
+      // SHADOW MODE INTENTIONAL
+      // ==========================================
+      // RouteSelection thresholds have not yet been validated against real routing fixtures.
+      // The new trajectory ownership implementation has not yet been validated under realistic multi-session traffic.
+      // Production cutover requires a separate validation milestone.
+      // Legacy routing remains authoritative.
       const stationResolution = await cache.getOrCreate(
         'stationResolution',
         () => Promise.resolve({ status: ResolutionStatus.UNRESOLVED })
@@ -80,12 +142,22 @@ class TrainDiscoveryService {
       legacyCorridor.nearestBoundingStations =
         stationResolution.status === ResolutionStatus.RESOLVED
           ? {
-              from: stationResolution.previousStation?.code,
-              to: stationResolution.nextStation?.code,
-            }
+            from: stationResolution.previousStation?.code,
+            to: stationResolution.nextStation?.code,
+          }
           : null;
       legacyCorridor.stationResolutionDetails = stationResolution;
     }
+
+    const { RoutingPipelineResult } = require('../models/RoutingPipelineResult.js');
+    const routingResult = new RoutingPipelineResult({
+      discoveryContext,
+      nearestCorridor,
+      projectionResult,
+      directionInferenceResult,
+      routeSelectionDecision,
+      routeContext
+    });
 
     return {
       trainTarget: mappedDomain.trainTarget,
@@ -94,10 +166,11 @@ class TrainDiscoveryService {
       discoveredTrains: executionState.finalResult
         ? (executionState.finalResult.discoveredTrains || [])
         : (executionState.providerErrors.length > 0
-            ? null
-            : ((executionState.executedStrategies || []).length > 0 ? [] : null)),
+          ? null
+          : (executionState.providerQueried ? [] : null)),
       providerError: executionState.providerErrors.length > 0 ? executionState.providerErrors[0] : null,
       strategyDiagnostics: executionState.diagnostics,
+      routingResult
     };
   }
 }

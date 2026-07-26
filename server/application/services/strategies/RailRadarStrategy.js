@@ -43,6 +43,7 @@ class RailRadarStrategy extends TrainDiscoveryStrategy {
   async discover(context) {
     const startTime = Date.now();
     const providerRequests = [];
+    let providerQueried = false;
 
     try {
       // Station resolution is guaranteed to be completed by the StrategyManager 
@@ -71,12 +72,14 @@ class RailRadarStrategy extends TrainDiscoveryStrategy {
           reason: 'Station resolution was unavailable or inconsistent with provider admission.',
           error: null,
           providerData: null,
+          providerQueried: false,
         };
       }
 
       const fromCode = stationResolution.previousStation.code;
       const toCode = stationResolution.nextStation.code;
 
+      providerQueried = true;
       const pStartTime = Date.now();
       const discoveredTrains = await this.provider.discoverNearbyTrains(fromCode, toCode);
       const pDuration = Date.now() - pStartTime;
@@ -101,6 +104,7 @@ class RailRadarStrategy extends TrainDiscoveryStrategy {
           reason: 'No trains discovered on this bound.',
           error: null,
           providerData: null,
+          providerQueried,
         };
       }
 
@@ -116,6 +120,7 @@ class RailRadarStrategy extends TrainDiscoveryStrategy {
         reason: 'Successfully discovered trains.',
         error: null,
         providerData: { toStationCode: toCode },
+        providerQueried,
       };
 
     } catch (error) {
@@ -132,6 +137,7 @@ class RailRadarStrategy extends TrainDiscoveryStrategy {
         reason: 'Provider threw an exception.',
         error: error.message,
         providerData: null,
+        providerQueried,
       };
     }
   }

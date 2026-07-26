@@ -1,29 +1,48 @@
-const { createProviderSnapshot } = require('../../domain/models/ProviderSnapshot.js');
-const { createObservation } = require('../../domain/models/Observation.js');
-const { createTrain } = require('../../domain/models/Train.js');
-const { createConfidenceAssessment } = require('../../domain/models/ConfidenceAssessment.js');
-const { ConfidenceLevel, TrainStatus } = require('../../domain/types/enums.js');
+const {
+  estimateTrainAwareness
+} = require('../../awareness-engine/TrainEstimator.js');
 
+const {
+  createTrainObservation
+} = require('../../domain/models/TrainObservation.js');
+const {
+  createTrain
+} = require('../../domain/models/Train.js');
+const {
+  createConfidenceAssessment
+} = require('../../domain/models/ConfidenceAssessment.js');
+const {
+  ConfidenceLevel,
+  TrainStatus
+} = require('../../domain/types/enums.js');
 class RailAwareService {
-  constructor({ discoveryService, provider, interpreter, store, confidenceEngine, riskEngine, recommendationEngine, mapper }) {
+  constructor({
+    discoveryService,
+    provider,
+    interpreter,
+    store,
+    confidenceEngine,
+    awarenessEngine,
+    assistanceEngine,
+    trajectoryManager
+  }) {
     this.discoveryService = discoveryService;
     this.provider = provider;
-    this.interpreter = interpreter;
     this.store = store;
     this.confidenceEngine = confidenceEngine;
-    this.riskEngine = riskEngine;
-    this.recommendationEngine = recommendationEngine;
-    this.mapper = mapper;
+    this.awarenessEngine = awarenessEngine;
+    this.assistanceEngine = assistanceEngine;
+    this.trajectoryManager = trajectoryManager;
   }
 
   /**
    * Orchestrates the evaluation of a location through the independent domain engines.
    */
-  async evaluateLocation(lat, lng) {
-    // Interoperability Constraint: TrainEstimator.js is an ES Module while RailAwareService.js is a CommonJS module.
-    // Dynamic import() inside evaluateLocation is required as CommonJS cannot statically require ESM modules.
-    const { estimateTrainAwareness } = await import('../../awareness-engine/TrainEstimator.js');
-    const trace = { stages: [], startTime: Date.now() };
+  async evaluateLocation(sessionId, lat, lng) {
+    const trace = {
+      stages: [],
+      startTime: Date.now()
+    };
     const addTrace = (stage, status, decision, reason, metadata = {}) => {
       trace.stages.push({
         stage,
@@ -34,163 +53,166 @@ class RailAwareService {
         ...metadata
       });
     };
-    addTrace('GPS Acquisition', 'SUCCESS', 'Proceed', 'Coordinates received', { input: { lat, lng } });
+    addTrace('GPS Acquisition', 'SUCCESS', 'Proceed', 'Coordinates received', {
+      input: {
+        lat,
+        lng
+      }
+    });
 
     // 1. Discover Context (Train/Journey)
     let discoveryContext;
     let trainTarget = null;
     let journey = null;
-
     try {
-      discoveryContext = await this.discoveryService.discoverTrain(lat, lng);
+      const { DiscoveryContext } = require('../models/DiscoveryContext.js');
+      const { observation: currentObs, sessionTrajectory } = this.trajectoryManager.recordObservation(sessionId, lat, lng);
+      const routingState = this.trajectoryManager.getRoutingState(sessionId);
+      const context = new DiscoveryContext({ observation: currentObs, sessionTrajectory, routingState });
+
+      discoveryContext = await this.discoveryService.discoverTrain(context);
+
+      if (discoveryContext.routingResult && discoveryContext.routingResult.projectionResult) {
+        this.trajectoryManager.saveRoutingState(sessionId, {
+          lastProjectedSegmentIndex: discoveryContext.routingResult.projectionResult.corridorSegmentIndex
+        });
+      }
+
       addTrace('Corridor Resolution', discoveryContext.corridor ? 'SUCCESS' : 'FAILED', discoveryContext.corridor ? 'Proceed' : 'Halt', discoveryContext.corridor ? 'Corridor found' : 'No track nearby');
       if (discoveryContext.corridor) {
-         addTrace('Station Resolution', discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED' ? 'SUCCESS' : 'FAILED', discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED' ? 'Proceed' : 'Halt Train Discovery', discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED' ? 'Stations bounded' : 'Provider/dataset limit prevents topological bounding');
+        addTrace('Station Resolution', discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED' ? 'SUCCESS' : 'FAILED', discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED' ? 'Proceed' : 'Halt Train Discovery', discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED' ? 'Stations bounded' : 'Provider/dataset limit prevents topological bounding');
       }
       trainTarget = discoveryContext.trainTarget;
       journey = discoveryContext.journey;
     } catch (e) {
       // Overpass 429/504 or other discovery failure
-      const awarenessWrapper = {
-        level: 'UNKNOWN', // Duck-typed for legacy mapper compatibility
-        reasons: ['[Engineering decision] API unavailable, cannot resolve topology'],
-        awareness: Object.freeze({
-          status: 'UNKNOWN',
-          trainAlongTrackDistanceMetres: null,
-          userAlongTrackDistanceMetres: null,
-          distanceMetres: null,
-          direction: null,
-          approaching: null,
-          confidence: ConfidenceLevel.UNKNOWN,
-          lastUpdatedAt: new Date(),
-          explanation: '[Engineering decision] API unavailable, cannot resolve topology.'
-        })
-      };
+      const awareness = Object.freeze({
+        status: 'UNKNOWN',
+        trainAlongTrackDistanceMetres: null,
+        userAlongTrackDistanceMetres: null,
+        distanceMetres: null,
+        direction: null,
+        approaching: null,
+        observationConfidence: ConfidenceLevel.UNKNOWN,
+        providerReliability: ConfidenceLevel.UNASSESSED,
+        lastUpdatedAt: new Date(),
+        explanation: '[Engineering decision] API unavailable, cannot resolve topology.',
+        requiresProminentDisplay: false
+      });
       const confidence = createConfidenceAssessment({
         level: ConfidenceLevel.UNKNOWN,
+        topologyConfidence: ConfidenceLevel.UNKNOWN,
+        observationConfidence: ConfidenceLevel.UNKNOWN,
+        providerReliability: ConfidenceLevel.UNASSESSED,
         reasons: ['[Engineering decision] Provider discovery timeout/rate limit'],
         assessedAt: new Date()
       });
-      
       if (discoveryContext && discoveryContext.strategyDiagnostics) {
-        discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, { elapsedTimeMs: d.elapsedTimeMs, providerRequests: d.providerRequests }));
+        discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, {
+          elapsedTimeMs: d.elapsedTimeMs,
+          providerRequests: d.providerRequests
+        }));
       }
-      return this.mapper.map({
+      return {
         observation: null,
         confidence,
-        risk: awarenessWrapper,
-        recommendation: null,
-        discoveryContext: { providerError: e.message, trace }
-      });
+        awareness,
+        assistance: this.assistanceEngine.generateAssistance(awareness),
+        discoveryContext: {
+          trainTarget: null,
+          journey: null,
+          corridor: null,
+          discoveredTrains: null,
+          providerError: e.message,
+          strategyDiagnostics: [],
+          trace
+        }
+      };
     }
-
     if (!trainTarget) {
       // Early exit if no trains found or off-corridor
       if (discoveryContext && discoveryContext.strategyDiagnostics) {
-        discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, { elapsedTimeMs: d.elapsedTimeMs, providerRequests: d.providerRequests }));
+        discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, {
+          elapsedTimeMs: d.elapsedTimeMs,
+          providerRequests: d.providerRequests
+        }));
       }
       discoveryContext.trace = trace;
-
       if (!discoveryContext.corridor) {
-        // Correctly return null risk if user is not on a corridor (trackPresence == false)
-        return this.mapper.map({
+        // Correctly return null awareness if user is not on a corridor (trackPresence == false)
+        return {
           observation: null,
           confidence: null,
-          risk: null,
-          recommendation: null,
+          awareness: null,
+          assistance: this.assistanceEngine.generateAssistance(null),
           discoveryContext
-        });
+        };
       }
 
-      // We have a track (corridor present) but no train. We must not return risk: null.
-      // ADR-002: a lack of evidence of danger is never interpreted as evidence of safety.
-      // Zero trains returned by the provider is a negative result, not positive confirmation of safety.
-      // Both UNRESOLVED topology and RESOLVED+zero-trains must therefore produce UNKNOWN risk.
-      // The two states are distinguished via confidence.level and observation.status (see reasons below).
+      // We have a track (corridor present) but no train. We must not return awareness: null.
+      // ADR-002: a lack of evidence of a train is never interpreted as an all-clear awareness state.
+      // Zero trains returned by the provider is a negative result, not a positive confirmation of an empty track.
+      // Both UNRESOLVED topology and RESOLVED+zero-trains must therefore produce UNKNOWN awareness.
+      // The two states are distinguished via confidence and observation.status.
       const isResolved = discoveryContext.corridor.stationResolutionDetails?.status === 'RESOLVED';
       const topologyConfidence = discoveryContext.corridor.stationResolutionDetails?.confidence || ConfidenceLevel.UNKNOWN;
-      const observationConfidence = ConfidenceLevel.HIGH;
-
-      const observation = createObservation({
+      const observationConfidence = ConfidenceLevel.NOT_APPLICABLE;
+      const observation = createTrainObservation({
         id: 'no-train-discovered',
-        train: createTrain({ number: isResolved ? 'NONE' : 'UNKNOWN', name: 'UNKNOWN', startDate: 'UNKNOWN' }),
+        train: createTrain({
+          number: isResolved ? 'NONE' : 'UNKNOWN',
+          name: 'UNKNOWN',
+          startDate: 'UNKNOWN'
+        }),
         status: isResolved ? TrainStatus.NOT_STARTED : TrainStatus.UNKNOWN,
         recordedAt: new Date(),
         validationErrors: isResolved ? [] : ['[Engineering decision] No train target identified on the requested corridor']
       });
-
-      const overallConfidenceLevel = this.confidenceEngine.combine(topologyConfidence, observationConfidence);
-
       const confidence = createConfidenceAssessment({
-        level: overallConfidenceLevel,
+        level: isResolved ? ConfidenceLevel.HIGH : ConfidenceLevel.UNKNOWN,
         topologyConfidence,
         observationConfidence,
-        overallConfidence: overallConfidenceLevel,
-        reasons: isResolved
-          ? ['[Engineering decision] Provider topology bounded; zero trains returned — absence of evidence is not evidence of safety (ADR-002)']
-          : ['[Engineering decision] No train target identified'],
+        providerReliability: ConfidenceLevel.UNASSESSED,
+        reasons: isResolved ? ['[Implementation policy] Track resolved with empty result set returned'] : ['[Engineering decision] No train target identified'],
         assessedAt: new Date()
       });
 
       // Integrate TrainEstimator for Case A / Case B
       const estimation = estimateTrainAwareness(journey, observation, discoveryContext.corridor);
 
-      // The RiskEngine enforces UNKNOWN confidence → UNKNOWN risk (line 23 of RailAwareRiskEngine).
-      // Both paths correctly produce UNKNOWN risk, satisfying ADR-002 and AGENTS.md Rule 10.
-      const awarenessWrapper = this.riskEngine.evaluate(journey, observation, confidence, estimation);
-      const recommendation = this.recommendationEngine.evaluate(awarenessWrapper);
-
-      return this.mapper.map({
+      // The AwarenessEngine enforces UNKNOWN confidence → UNKNOWN awareness.
+      // Both paths correctly produce UNKNOWN awareness, satisfying ADR-002 and AGENTS.md Rule 10.
+      const awareness = this.awarenessEngine.evaluate(journey, observation, confidence, estimation);
+      return {
         observation,
         confidence,
-        risk: awarenessWrapper,
-        recommendation,
+        awareness,
+        assistance: this.assistanceEngine.generateAssistance(awareness),
         discoveryContext
-      });
+      };
     }
 
     // 2. Fetch Live Status Payload
-    let liveData = null;
-    let metadata = { httpStatusCode: 200, timestamp: new Date().toISOString() };
-    try {
-      if (discoveryContext && discoveryContext.strategyDiagnostics) {
-        discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, { elapsedTimeMs: d.elapsedTimeMs, providerRequests: d.providerRequests }));
-      }
-      liveData = await this.provider.getLiveTrainProgress(trainTarget);
-      addTrace('Provider Adapter (liveTrain)', 'SUCCESS', 'Proceed', 'Fetched topological progress');
-    } catch (e) {
-      metadata = { httpStatusCode: e.status || 500, error: e.message, timestamp: new Date().toISOString() };
-      addTrace('Provider Adapter (liveTrain)', 'FAILED', 'Fallback', e.message);
-    }
-
-    // Convert mapped provider payload into the strict schema expected by PIL
-    const rawJson = liveData ? {
-      train: { number: liveData.id },
-      status: liveData.status,
-      currentLocation: {
-        previousStation: liveData.previousStation,
-        nextStation: liveData.nextStation,
-        segmentProgress: liveData.segmentProgress
-      },
-      lastUpdatedAt: liveData.lastUpdatedAt
-    } : {};
-
-    const snapshot = createProviderSnapshot({
-      id: `snap-${Date.now()}`,
-      rawJson,
-      metadata,
-      capturedAt: new Date()
-    });
-
-    // 3. Interpret -> Observation
     let observation = null;
     try {
-      observation = this.interpreter.interpret(snapshot);
+      if (discoveryContext && discoveryContext.strategyDiagnostics) {
+        discoveryContext.strategyDiagnostics.forEach(d => addTrace(d.strategy, d.status, 'Discovery', d.reason, {
+          elapsedTimeMs: d.elapsedTimeMs,
+          providerRequests: d.providerRequests
+        }));
+      }
+      observation = await this.provider.getTrainObservation(trainTarget);
+      addTrace('ObservationProvider', 'SUCCESS', 'Proceed', 'Fetched TrainObservation');
     } catch (e) {
+      addTrace('ObservationProvider', 'FAILED', 'Fallback', e.message);
       // Fallback observation tracking explicit validation errors
-      observation = createObservation({
-        id: snapshot.id,
-        train: createTrain({ number: trainTarget, name: 'UNKNOWN', startDate: 'UNKNOWN' }),
+      observation = createTrainObservation({
+        id: `fallback-${Date.now()}`,
+        train: createTrain({
+          number: trainTarget,
+          name: 'UNKNOWN',
+          startDate: 'UNKNOWN'
+        }),
         status: 'unknown',
         recordedAt: new Date(),
         validationErrors: [e.message]
@@ -206,13 +228,12 @@ class RailAwareService {
     const observationConfidence = obsConfAssessment.level;
     const topologyConfidence = discoveryContext.corridor?.stationResolutionDetails?.confidence || ConfidenceLevel.UNKNOWN;
 
-    const overallConfidenceLevel = this.confidenceEngine.combine(topologyConfidence, observationConfidence);
-
+    // We update the topologyConfidence in the final assessment
     const confidence = createConfidenceAssessment({
-      level: overallConfidenceLevel,
+      level: observationConfidence,
       topologyConfidence,
       observationConfidence,
-      overallConfidence: overallConfidenceLevel,
+      providerReliability: obsConfAssessment.providerReliability || ConfidenceLevel.UNASSESSED,
       reasons: obsConfAssessment.reasons,
       assessedAt: new Date()
     });
@@ -221,25 +242,20 @@ class RailAwareService {
     const estimation = estimateTrainAwareness(journey, observation, discoveryContext.corridor);
 
     // 6. Evaluate Awareness
-    const awarenessWrapper = this.riskEngine.evaluate(journey, observation, confidence, estimation);
-
-    // 7. Evaluate Recommendation
-    const recommendation = this.recommendationEngine.evaluate(awarenessWrapper);
-    addTrace('Awareness Engine', 'SUCCESS', 'Finalize', 'Evaluated awareness', { 
-      status: awarenessWrapper.awareness ? awarenessWrapper.awareness.status : 'UNKNOWN', 
-      legacyRiskLevel: awarenessWrapper.level 
+    const awareness = this.awarenessEngine.evaluate(journey, observation, confidence, estimation);
+    addTrace('Awareness Engine', 'SUCCESS', 'Finalize', 'Evaluated awareness', {
+      status: awareness ? awareness.status : 'UNKNOWN'
     });
     discoveryContext.trace = trace;
 
-    // 8. Return strictly bounded ApplicationResult (via Mapper)
-    return this.mapper.map({
+    // 7. Return strictly bounded ApplicationResult
+    return {
       observation,
       confidence,
-      risk: awarenessWrapper,
-      recommendation,
+      awareness,
+      assistance: this.assistanceEngine.generateAssistance(awareness),
       discoveryContext
-    });
+    };
   }
 }
-
 module.exports = RailAwareService;

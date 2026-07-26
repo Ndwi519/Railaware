@@ -1,18 +1,15 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import mongoose from 'mongoose';
-import rateLimit from 'express-rate-limit';
-import { loadEnv } from './config/env.js';
-import { createLogger } from './utils/logger.js';
-import { createRailAwareService } from './application/bootstrap/createRailAwareService.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const { loadEnv } = require('./config/env.js');
+const { createLogger } = require('./utils/logger.js');
+const { createRailAwareService } = require('./application/bootstrap/createRailAwareService.js');
+const path = require('path');
+const dotenv = require('dotenv');
 
 // Resolve the root .env file located one directory up
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const log = createLogger('api:server');
@@ -41,7 +38,12 @@ async function startServer() {
         }
       }
     }));
-    app.use(cors());
+
+    app.use(cors({
+      origin: config.corsOrigins,
+      methods: ['GET', 'POST'],
+      allowedHeaders: ['Content-Type', 'Authorization']
+    }));
     app.use(express.json({ limit: '10kb' }));
     app.use(morgan('combined'));
 
@@ -65,16 +67,8 @@ async function startServer() {
       message: 'Developer endpoints disabled in production',
     });
 
-    // Optional MongoDB connection (only required for settings/contacts)
-    if (process.env.MONGODB_URI) {
-      await mongoose.connect(process.env.MONGODB_URI);
-      log.info('Connected to MongoDB');
-    } else {
-      log.warn('MONGODB_URI not provided, persistence for settings/contacts will be disabled');
-    }
-
     app.get('/', (req, res) => {
-      res.json({ 
+      res.json({
         message: 'RailAware API Server is running.',
         frontendUrl: 'http://localhost:5173'
       });
@@ -87,17 +81,44 @@ async function startServer() {
     // Instantiate the singleton application service
     const railAwareService = createRailAwareService(config);
 
+    // Instantiate Evaluation Service
+    const SimulationProvider = require('./provider/SimulationProvider.js');
+    const simulationProvider = new SimulationProvider();
+    const evaluationService = require('./application/services/RailAwareService.js');
+    const evalInstance = new evaluationService({
+      discoveryService: railAwareService.discoveryService,
+      provider: simulationProvider,
+      store: new (require('./observation-store/InMemoryObservationStore.js'))(100),
+      confidenceEngine: railAwareService.confidenceEngine,
+      awarenessEngine: railAwareService.awarenessEngine,
+      assistanceEngine: railAwareService.assistanceEngine
+    });
+
+    /**
+     * PROTOTYPE SESSION STORAGE
+     * - Sessions exist only in memory
+     * - Sessions disappear after process restart
+     * - Sessions are not shared across server instances
+     * - Bounded LRU eviction removes inactive sessions when limit (default 1000) is reached
+     * - This is prototype infrastructure only
+     */
     app.post('/api/v1/observation', observationLimiter, async (req, res) => {
+      let sessionId = req.headers['x-session-id'] || req.body.sessionId;
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+      }
+      res.setHeader('x-session-id', sessionId);
+
       const { lat, lng } = req.body;
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         return res.status(400).json({ error: 'Invalid location parameters' });
       }
-      
-      const location = { lat, lng };
+
+      const location = { lat, lng, sessionId };
       log.info('Incoming observation request delegated to RailAwareService', { location });
-      
+
       try {
-        const response = await railAwareService.evaluateLocation(lat, lng);
+        const response = await railAwareService.evaluateLocation(sessionId, lat, lng);
         res.json(response);
       } catch (error) {
         log.error('Observation pipeline failed', error);
@@ -105,12 +126,51 @@ async function startServer() {
       }
     });
 
+    app.post('/api/v1/evaluation/observation', observationLimiter, async (req, res) => {
+      let sessionId = req.headers['x-session-id'] || req.body.sessionId;
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+      }
+      res.setHeader('x-session-id', sessionId);
+
+      const { lat, lng, simulationState } = req.body;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({ error: 'Invalid location parameters' });
+      }
+
+      if (simulationState) {
+        simulationProvider.setState(simulationState);
+      }
+
+      const location = { lat, lng, sessionId };
+      log.info('Incoming evaluation request delegated to EvaluationService', { location });
+
+      try {
+        const response = await evalInstance.evaluateLocation(sessionId, lat, lng);
+        res.json(response);
+      } catch (error) {
+        log.error('Evaluation pipeline failed', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // ==========================================
+    // PHASE 4 EVALUATION FRAMEWORK ROUTES
+    // ==========================================
+    if (config.nodeEnv !== 'production') {
+      const evaluationRouter = require('./evaluation-framework/api/evaluationRouter.js');
+      app.use('/api/v1/evaluation', evaluationRouter);
+      log.info('Evaluation Router mounted for Development/CI.');
+    } else {
+      log.info('Evaluation Router disabled in production.');
+    }
+
     // ==========================================
     // PHASE 0 DEVELOPER DIAGNOSTICS: PROBE ENDPOINTS
     // ==========================================
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    
+    const fs = require('fs').promises;
+    const path = require('path');
+
     // Ensure logs directory exists
     const logsDir = path.join(process.cwd(), 'logs');
     try {
@@ -125,7 +185,7 @@ async function startServer() {
       const startTime = Date.now();
       try {
         log.info('Probing RailRadar', { url });
-        
+
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -135,7 +195,7 @@ async function startServer() {
         });
 
         const durationMs = Date.now() - startTime;
-        
+
         let body;
         const text = await response.text();
         try {
@@ -153,7 +213,7 @@ async function startServer() {
         };
 
         log.info('Probe completed', { status: response.status, durationMs });
-        
+
         // Save to file
         await fs.writeFile(path.join(logsDir, filename), JSON.stringify(probeData, null, 2));
 
@@ -183,9 +243,25 @@ async function startServer() {
     });
 
 
-    app.listen(config.port, () => {
+    const server = app.listen(config.port, () => {
       log.info(`RailAware API Server running on port ${config.port}`, { env: config.nodeEnv });
     });
+
+    const shutdown = () => {
+      log.info('Received shutdown signal. Closing HTTP server...');
+      server.close(() => {
+        log.info('HTTP server closed. Process exiting.');
+        process.exit(0);
+      });
+      // Force exit after 10 seconds if connections are still hanging
+      setTimeout(() => {
+        log.error('Forcing shutdown due to pending connections');
+        process.exit(1);
+      }, 10000).unref();
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 
   } catch (error) {
     log.error('Failed to start API server', error);

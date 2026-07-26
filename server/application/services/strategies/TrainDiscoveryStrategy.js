@@ -53,5 +53,4 @@ class TrainDiscoveryStrategy {
     throw new Error('Not implemented');
   }
 }
-
 module.exports = TrainDiscoveryStrategy;

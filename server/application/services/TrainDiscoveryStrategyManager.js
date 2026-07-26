@@ -55,6 +55,7 @@ class TrainDiscoveryStrategyManager {
       providerErrors: [],
       diagnostics: [],
       finalResult: null,
+      providerQueried: false,
     };
 
     const addDiagnostic = (strategyId, stage, status, durationMs, reason, providerRequest = null) => {
@@ -120,8 +121,11 @@ class TrainDiscoveryStrategyManager {
           error: err.message,
           reason: null,
           providerData: null,
+          providerQueried: false,
         };
       }
+
+      executionState.providerQueried = executionState.providerQueried || (stratResult.providerQueried || false);
 
       if (stratResult.providerRequests && stratResult.providerRequests.length > 0) {
         stratResult.providerRequests.forEach(req => {
