@@ -1,0 +1,14 @@
+name: ADR 0005 Terminology Enforcement
+
+on: [push, pull_request]
+
+jobs:
+  enforce-terminology:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for restricted safety terminology
+        run: |
+          # Fails if any restricted terminology (danger, warning, hazard, risk, safety, track circuit, clear)
+          # is found in the user-facing directories.
+          ! grep -riE "\b(danger|danger_zone|warning|hazard|risk|safety|track circuit|clear)\b" client/src/ server/application/serializers/ server/domain/models/AwarenessContext.js
