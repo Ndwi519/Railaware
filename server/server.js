@@ -81,19 +81,6 @@ async function startServer() {
     // Instantiate the singleton application service
     const railAwareService = createRailAwareService(config);
 
-    // Instantiate Evaluation Service
-    const SimulationProvider = require('./provider/SimulationProvider.js');
-    const simulationProvider = new SimulationProvider();
-    const evaluationService = require('./application/services/RailAwareService.js');
-    const evalInstance = new evaluationService({
-      discoveryService: railAwareService.discoveryService,
-      provider: simulationProvider,
-      store: new (require('./observation-store/InMemoryObservationStore.js'))(100),
-      confidenceEngine: railAwareService.confidenceEngine,
-      awarenessEngine: railAwareService.awarenessEngine,
-      assistanceEngine: railAwareService.assistanceEngine
-    });
-
     /**
      * PROTOTYPE SESSION STORAGE
      * - Sessions exist only in memory
@@ -122,34 +109,6 @@ async function startServer() {
         res.json(response);
       } catch (error) {
         log.error('Observation pipeline failed', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    app.post('/api/v1/evaluation/observation', observationLimiter, async (req, res) => {
-      let sessionId = req.headers['x-session-id'] || req.body.sessionId;
-      if (!sessionId) {
-        sessionId = crypto.randomUUID();
-      }
-      res.setHeader('x-session-id', sessionId);
-
-      const { lat, lng, simulationState } = req.body;
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return res.status(400).json({ error: 'Invalid location parameters' });
-      }
-
-      if (simulationState) {
-        simulationProvider.setState(simulationState);
-      }
-
-      const location = { lat, lng, sessionId };
-      log.info('Incoming evaluation request delegated to EvaluationService', { location });
-
-      try {
-        const response = await evalInstance.evaluateLocation(sessionId, lat, lng);
-        res.json(response);
-      } catch (error) {
-        log.error('Evaluation pipeline failed', error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
