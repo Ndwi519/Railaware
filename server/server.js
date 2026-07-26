@@ -80,6 +80,7 @@ async function startServer() {
 
     // Instantiate the singleton application service
     const railAwareService = createRailAwareService(config);
+    const ApplicationMapper = require('./application/mappers/ApplicationMapper.js');
 
     /**
      * PROTOTYPE SESSION STORAGE
@@ -106,7 +107,8 @@ async function startServer() {
 
       try {
         const response = await railAwareService.evaluateLocation(sessionId, lat, lng);
-        res.json(response);
+        const mappedResponse = ApplicationMapper.toObservationResponse(response);
+        res.json(mappedResponse);
       } catch (error) {
         log.error('Observation pipeline failed', error);
         res.status(500).json({ error: 'Internal server error' });
