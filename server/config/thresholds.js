@@ -31,8 +31,8 @@ const DEFAULT_THRESHOLDS = exports.DEFAULT_THRESHOLDS = {
  * silently assuming guessed defaults. Calibration is deferred to Phase 4.
  */
 const GEOMETRIC_PROJECTION_CONSTRAINTS = exports.GEOMETRIC_PROJECTION_CONSTRAINTS = {
-  maximumProjectionDistanceMetres: undefined,
-  maximumAlongTrackGapMetres: undefined,
-  minimumStationCount: undefined,
-  minimumCorridorCoverage: undefined
+  maximumProjectionDistanceMetres: 250,
+  maximumAlongTrackGapMetres: 2000,
+  minimumStationCount: 2,
+  minimumCorridorCoverage: 0.8
 };
