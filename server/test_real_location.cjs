@@ -9,10 +9,15 @@ async function runValidation() {
   const app = express();
   app.use(express.json());
   
-  // Create a config object. We'll use the real RailRadar provider key from env if available, or a mock one.
+  const apiKey = process.env.RAILRADAR_KEY;
+  if (!apiKey) {
+    console.error('FATAL: RAILRADAR_KEY environment variable is required to run live provider tests.');
+    process.exit(1);
+  }
+
   const config = {
     overpassUrl: 'https://overpass-api.de/api/interpreter',
-    railradarKey: process.env.RAILRADAR_API_KEY || 'test_key',
+    railradarKey: apiKey,
     nodeEnv: 'test'
   };
 
@@ -20,7 +25,7 @@ async function runValidation() {
 
   app.post('/api/v1/observation', async (req, res) => {
     try {
-      const response = await railAwareService.evaluateLocation(req.body.lat, req.body.lng);
+      const response = await railAwareService.evaluateLocation('test-session', req.body.lat, req.body.lng);
       res.json(response);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
@@ -45,7 +50,7 @@ async function runValidation() {
       });
       const data = await res.json();
       console.log(`HTTP Status: ${res.status}`);
-      console.log(`Risk Level: ${data.risk?.level}`);
+      console.log(`Awareness Status: ${data.awareness?.status}`);
       console.log(`Trains Found: ${data.trains?.length || 0}`);
       if (data.metadata?.providerError) {
          console.log(`Provider Error: ${data.metadata.providerError}`);

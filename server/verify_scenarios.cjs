@@ -15,7 +15,7 @@ async function runValidation() {
 
   app.post('/api/v1/observation', async (req, res) => {
     try {
-      const response = await railAwareService.evaluateLocation(req.body.lat, req.body.lng);
+      const response = await railAwareService.evaluateLocation('test-session', req.body.lat, req.body.lng);
       res.json(response);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error', details: error.message });
