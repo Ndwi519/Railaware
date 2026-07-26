@@ -1,11 +1,14 @@
-import { buildCorridorStationIndex, projectPointOntoCorridor, selectBoundingStations, calculatePolylineLengthMetres } from '../../calculations/index.js';
-import { ResolutionMethod, ConfidenceLevel, EvidenceSource } from '../../domain/types/enums.js';
-import { deepFreeze } from '../../utils/deepFreeze.js';
-
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.GeometricProjectionStrategy = void 0;
+var _index = require("../../calculations/index.js");
+var _enums = require("../../domain/types/enums.js");
+var _deepFreeze = require("../../utils/deepFreeze.js");
 /**
  * @implements {import('../types.js').ResolutionStrategy}
  */
-export class GeometricProjectionStrategy {
+class GeometricProjectionStrategy {
   /**
    * @param {Object} config
    * @param {number} config.maximumProjectionDistanceMetres
@@ -24,96 +27,136 @@ export class GeometricProjectionStrategy {
   }
 
   /**
- * Resolves the bounding stations geometrically.
- *
- * Requires snappedGeometry to provide:
- * - corridorGeometry
- * - stations
- *
- * Resolution succeeds only when at least two valid stations can be
- * projected onto the resolved corridor.
- */
+  * Resolves the bounding stations geometrically.
+  *
+  * Requires snappedGeometry to provide:
+  * - corridorGeometry
+  * - stations
+  *
+  * Resolution succeeds only when at least two valid stations can be
+  * projected onto the resolved corridor.
+  */
   async resolve(gps, snappedGeometry) {
     // 1. Validate inputs
     if (!gps || typeof gps.lat !== 'number' || typeof gps.lng !== 'number') {
-      return { success: false, reason: "Invalid GPS coordinates" };
+      return {
+        success: false,
+        reason: "Invalid GPS coordinates"
+      };
     }
-    
     if (!snappedGeometry || typeof snappedGeometry !== 'object') {
-      return { success: false, reason: "Invalid snapped corridor geometry" };
+      return {
+        success: false,
+        reason: "Invalid snapped corridor geometry"
+      };
     }
 
     // 2. Extract corridorGeometry and stations
-    const { corridorGeometry, stations } = snappedGeometry;
+    const {
+      corridorGeometry,
+      stations
+    } = snappedGeometry;
     if (!corridorGeometry || !stations) {
-      return { success: false, reason: "Missing required corridorGeometry or stations in snappedGeometry" };
+      return {
+        success: false,
+        reason: "Missing required corridorGeometry or stations in snappedGeometry"
+      };
     }
 
     // 3. Build the station index
-    const stationIndex = buildCorridorStationIndex(corridorGeometry, stations);
+    console.log("=================================");
+    console.log("RAW STATIONS RECEIVED:", stations.length);
+
+    for (const s of stations) {
+      console.log(s);
+    }
+
+    console.log("=================================");
+    console.log("Stations received:", stations.length);
+
+    stations.forEach((s, i) => {
+      console.log(`Station ${i}:`, JSON.stringify(s, null, 2));
+    });
+    const stationIndex = (0, _index.buildCorridorStationIndex)(corridorGeometry, stations);
+    console.log("STATION INDEX LENGTH:", stationIndex.length);
+
+    for (const s of stationIndex) {
+      console.log(s);
+    }
     if (!stationIndex || stationIndex.length < 2) {
-      return { success: false, reason: "Insufficient valid stations in corridor to establish bounds" };
+      return {
+        success: false,
+
+        reason: "Insufficient valid stations in corridor to establish bounds"
+      };
     }
 
     // 4. Project the GPS
-    const projectionResult = projectPointOntoCorridor(gps, corridorGeometry);
+    const projectionResult = (0, _index.projectPointOntoCorridor)(gps, corridorGeometry);
     if (!projectionResult) {
-      return { success: false, reason: "Failed to mathematically project GPS point onto corridor geometry" };
+      return {
+        success: false,
+        reason: "Failed to mathematically project GPS point onto corridor geometry"
+      };
     }
 
     // 5. Select bounding stations
-    const bounding = selectBoundingStations(projectionResult, stationIndex);
+    const bounding = (0, _index.selectBoundingStations)(projectionResult, stationIndex);
     if (!bounding) {
-      return { success: false, reason: "GPS projection falls outside the bounds of known stations on this corridor" };
+      return {
+        success: false,
+        reason: "GPS projection falls outside the bounds of known stations on this corridor"
+      };
     }
 
     // 6. Evaluate geometric constraints
-    if (
-      this.config.maximumProjectionDistanceMetres === undefined ||
-      this.config.maximumAlongTrackGapMetres === undefined ||
-      this.config.minimumStationCount === undefined ||
-      this.config.minimumCorridorCoverage === undefined
-    ) {
-      return { success: false, reason: "Geometric projection constraints are not calibrated" };
+    if (this.config.maximumProjectionDistanceMetres === undefined || this.config.maximumAlongTrackGapMetres === undefined || this.config.minimumStationCount === undefined || this.config.minimumCorridorCoverage === undefined) {
+      return {
+        success: false,
+        reason: "Geometric projection constraints are not calibrated"
+      };
     }
-
     if (projectionResult.crossTrackDistanceMetres > this.config.maximumProjectionDistanceMetres) {
-      return { success: false, reason: "Cross-track projection distance exceeds configured limit" };
+      return {
+        success: false,
+        reason: "Cross-track projection distance exceeds configured limit"
+      };
     }
-
     const gapMetres = bounding.nextStation.alongTrackDistanceMetres - bounding.previousStation.alongTrackDistanceMetres;
     if (gapMetres > this.config.maximumAlongTrackGapMetres) {
-      return { success: false, reason: "Along-track gap between bounding stations exceeds configured limit" };
+      return {
+        success: false,
+        reason: "Along-track gap between bounding stations exceeds configured limit"
+      };
     }
-
     if (stationIndex.length < this.config.minimumStationCount) {
-      return { success: false, reason: "Total valid stations is below minimum required" };
+      return {
+        success: false,
+        reason: "Total valid stations is below minimum required"
+      };
     }
-
-    const corridorLengthMetres = calculatePolylineLengthMetres(corridorGeometry);
+    const corridorLengthMetres = (0, _index.calculatePolylineLengthMetres)(corridorGeometry);
     if (corridorLengthMetres > 0) {
       const stationSpanMetres = stationIndex[stationIndex.length - 1].alongTrackDistanceMetres - stationIndex[0].alongTrackDistanceMetres;
       const coverage = stationSpanMetres / corridorLengthMetres;
       if (coverage < this.config.minimumCorridorCoverage) {
-        return { success: false, reason: "Station coverage is below minimum required" };
+        return {
+          success: false,
+          reason: "Station coverage is below minimum required"
+        };
       }
     }
 
     // 7. Successful resolution
-    return deepFreeze({
+    return (0, _deepFreeze.deepFreeze)({
       success: true,
       previousStation: bounding.previousStation.station,
       nextStation: bounding.nextStation.station,
-      method: ResolutionMethod.GEOMETRIC_PROJECTION,
-      confidence: ConfidenceLevel.LOW,
-      confidenceReasons: [
-        "Projected onto corridor geometry.",
-        "Bounding stations determined geometrically.",
-        "No authoritative topology available."
-      ],
-      evidenceSources: [
-        EvidenceSource.GEOMETRIC_PROJECTION
-      ]
+      method: _enums.ResolutionMethod.GEOMETRIC_PROJECTION,
+      confidence: _enums.ConfidenceLevel.LOW,
+      confidenceReasons: ["Projected onto corridor geometry.", "Bounding stations determined geometrically.", "No authoritative topology available."],
+      evidenceSources: [_enums.EvidenceSource.GEOMETRIC_PROJECTION]
     });
   }
 }
+exports.GeometricProjectionStrategy = GeometricProjectionStrategy;

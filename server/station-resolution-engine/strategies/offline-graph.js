@@ -1,11 +1,14 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.OfflineGraphStrategy = void 0;
 /**
  * @implements {import('../types.js').ResolutionStrategy}
  */
-export class OfflineGraphStrategy {
+class OfflineGraphStrategy {
   constructor() {
     this.name = 'Cached Offline Railway Graph';
   }
-
   async resolve(gps, snappedGeometry) {
     return {
       success: false,
@@ -13,3 +16,4 @@ export class OfflineGraphStrategy {
     };
   }
 }
+exports.OfflineGraphStrategy = OfflineGraphStrategy;

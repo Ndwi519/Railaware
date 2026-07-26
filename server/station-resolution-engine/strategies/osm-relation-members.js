@@ -1,11 +1,14 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.OsmRelationMembersStrategy = void 0;
 /**
  * @implements {import('../types.js').ResolutionStrategy}
  */
-export class OsmRelationMembersStrategy {
+class OsmRelationMembersStrategy {
   constructor() {
     this.name = 'OSM Relation Members';
   }
-
   async resolve(gps, snappedGeometry) {
     return {
       success: false,
@@ -13,3 +16,4 @@ export class OsmRelationMembersStrategy {
     };
   }
 }
+exports.OsmRelationMembersStrategy = OsmRelationMembersStrategy;

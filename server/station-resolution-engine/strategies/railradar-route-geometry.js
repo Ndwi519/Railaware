@@ -1,11 +1,14 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.RailRadarRouteGeometryStrategy = void 0;
 /**
  * @implements {import('../types.js').ResolutionStrategy}
  */
-export class RailRadarRouteGeometryStrategy {
+class RailRadarRouteGeometryStrategy {
   constructor() {
     this.name = 'RailRadar Route Geometry';
   }
-
   async resolve(gps, snappedGeometry) {
     return {
       success: false,
@@ -13,3 +16,4 @@ export class RailRadarRouteGeometryStrategy {
     };
   }
 }
+exports.RailRadarRouteGeometryStrategy = RailRadarRouteGeometryStrategy;

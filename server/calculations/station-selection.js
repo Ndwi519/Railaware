@@ -1,10 +1,13 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.selectBoundingStations = selectBoundingStations;
+var _deepFreeze = require("../utils/deepFreeze.js");
+var _constants = require("./constants.js");
 /**
  * @module calculations/station-selection
  * @responsibility Select the deterministic bounding stations surrounding a projected GPS position from an ordered station index.
  */
-
-import { deepFreeze } from '../utils/deepFreeze.js';
-import { TIE_BREAKING_TOLERANCE } from './constants.js';
 
 /**
  * @typedef {import('./projection.js').ProjectionResult} ProjectionResult
@@ -37,11 +40,10 @@ import { TIE_BREAKING_TOLERANCE } from './constants.js';
  * @param {Array<StationIndexEntry>} stationIndex - MUST be pre-sorted monotonically by alongTrackDistanceMetres
  * @returns {BoundingStations|null} Deeply frozen bounding stations, or null if unresolvable or if contract is violated.
  */
-export function selectBoundingStations(projectionResult, stationIndex) {
+function selectBoundingStations(projectionResult, stationIndex) {
   if (!projectionResult || typeof projectionResult.alongTrackDistanceMetres !== 'number') {
     return null;
   }
-
   if (!Array.isArray(stationIndex) || stationIndex.length < 2) {
     return null;
   }
@@ -52,29 +54,23 @@ export function selectBoundingStations(projectionResult, stationIndex) {
   let previousDistance = -Infinity;
   for (let i = 0; i < stationIndex.length; i++) {
     const entry = stationIndex[i];
-    
     if (!entry || !entry.station || typeof entry.alongTrackDistanceMetres !== 'number') {
       return null;
     }
-
     if (entry.alongTrackDistanceMetres < previousDistance) {
       return null;
     }
-    
     previousDistance = entry.alongTrackDistanceMetres;
   }
-
   const projectedDistance = projectionResult.alongTrackDistanceMetres;
-
   let previousIndex = -1;
-
   for (let i = 0; i < stationIndex.length; i++) {
     const stationDistance = stationIndex[i].alongTrackDistanceMetres;
 
     // Due to floating point imprecision, we treat equality within TIE_BREAKING_TOLERANCE.
     // If the station distance is <= projectedDistance (accounting for precision),
     // it is a candidate for previousStation.
-    if (stationDistance <= projectedDistance + TIE_BREAKING_TOLERANCE) {
+    if (stationDistance <= projectedDistance + _constants.TIE_BREAKING_TOLERANCE) {
       previousIndex = i;
     } else {
       // Since the array is pre-sorted monotonically, the first station that exceeds 
@@ -88,15 +84,13 @@ export function selectBoundingStations(projectionResult, stationIndex) {
   if (previousIndex === -1) {
     return null;
   }
-
   const nextIndex = previousIndex + 1;
 
   // If projection is after or exactly on the final station, there is no nextStation
   if (nextIndex >= stationIndex.length) {
     return null;
   }
-
-  return deepFreeze({
+  return (0, _deepFreeze.deepFreeze)({
     previousStation: stationIndex[previousIndex],
     nextStation: stationIndex[nextIndex],
     previousIndex,

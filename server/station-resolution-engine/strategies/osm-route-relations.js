@@ -1,11 +1,14 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.OsmRouteRelationsStrategy = void 0;
 /**
  * @implements {import('../types.js').ResolutionStrategy}
  */
-export class OsmRouteRelationsStrategy {
+class OsmRouteRelationsStrategy {
   constructor() {
     this.name = 'OSM Route Relations';
   }
-
   async resolve(gps, snappedGeometry) {
     // This is a stubbed implementation representing the complex Overpass querying logic.
     // In reality, this would perform the HTTP request to Overpass API:
@@ -15,7 +18,7 @@ export class OsmRouteRelationsStrategy {
 
     // Since we know from evidence that Overpass frequently 504s and real-time querying 
     // is highly volatile, we will simulate the attempt and failure for tracks not in a relation.
-    
+
     // Simulating an Overpass timeout or empty relation list to demonstrate the evidence-based fallback
     return {
       success: false,
@@ -23,3 +26,4 @@ export class OsmRouteRelationsStrategy {
     };
   }
 }
+exports.OsmRouteRelationsStrategy = OsmRouteRelationsStrategy;

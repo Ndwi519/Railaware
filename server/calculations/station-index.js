@@ -1,11 +1,14 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.buildCorridorStationIndex = buildCorridorStationIndex;
+var _projection = require("./projection.js");
+var _constants = require("./constants.js");
+var _deepFreeze2 = require("../utils/deepFreeze.js");
 /**
  * @module calculations/station-index
  * @responsibility Transform an unordered collection of station features into a monotonic corridor ordering.
  */
-
-import { projectPointOntoCorridor } from './projection.js';
-import { TIE_BREAKING_TOLERANCE } from './constants.js';
-import { deepFreeze as _deepFreeze } from '../utils/deepFreeze.js';
 
 /**
  * @typedef {import('../domain/types/station.js').StationReference} StationReference
@@ -30,23 +33,19 @@ import { deepFreeze as _deepFreeze } from '../utils/deepFreeze.js';
  * @param {Array<{station: StationReference, lat: number, lng: number}>} stations - Unordered station features
  * @returns {Array<StationIndexEntry>} A sorted, immutable array of station index entries
  */
-export function buildCorridorStationIndex(polyline, stations) {
+function buildCorridorStationIndex(polyline, stations) {
   if (!Array.isArray(polyline) || !Array.isArray(stations)) {
     return [];
   }
-
   const entries = [];
-
   for (let i = 0; i < stations.length; i++) {
     const feature = stations[i];
-    
+
     // Ignore malformed features safely
     if (!feature || !feature.station || typeof feature.lat !== 'number' || typeof feature.lng !== 'number') {
       continue;
     }
-
-    const projection = projectPointOntoCorridor(feature, polyline);
-    
+    const projection = (0, _projection.projectPointOntoCorridor)(feature, polyline);
     if (projection) {
       entries.push({
         entry: {
@@ -65,26 +64,25 @@ export function buildCorridorStationIndex(polyline, stations) {
   // Sort deterministically
   entries.sort((a, b) => {
     const diff = a.entry.alongTrackDistanceMetres - b.entry.alongTrackDistanceMetres;
-    
+
     // 1. Primary sort: alongTrackDistanceMetres
-    if (Math.abs(diff) > TIE_BREAKING_TOLERANCE) {
+    if (Math.abs(diff) > _constants.TIE_BREAKING_TOLERANCE) {
       return diff;
     }
-    
+
     // 2. Tie-breaker: smaller segmentIndex
     if (a.entry.segmentIndex !== b.entry.segmentIndex) {
       return a.entry.segmentIndex - b.entry.segmentIndex;
     }
-    
+
     // 3. Tie-breaker: smaller interpolationRatio
     const tDiff = a.entry.interpolationRatio - b.entry.interpolationRatio;
-    if (Math.abs(tDiff) > TIE_BREAKING_TOLERANCE) {
+    if (Math.abs(tDiff) > _constants.TIE_BREAKING_TOLERANCE) {
       return tDiff;
     }
-    
+
     // 4. Final tie-breaker: original input order
     return a.originalIndex - b.originalIndex;
   });
-
-  return _deepFreeze(entries.map(e => e.entry));
+  return (0, _deepFreeze2.deepFreeze)(entries.map(e => e.entry));
 }

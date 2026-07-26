@@ -1,11 +1,14 @@
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.projectPointOntoCorridor = projectPointOntoCorridor;
+var _haversine = require("./haversine.js");
+var _constants = require("./constants.js");
+var _deepFreeze2 = require("../utils/deepFreeze.js");
 /**
  * @module calculations/projection
  * @responsibility Perform mathematical projection of GPS points onto polylines.
  */
-
-import { haversineMetres } from './haversine.js';
-import { GEOMETRIC_NUMERICAL_TOLERANCE, TIE_BREAKING_TOLERANCE } from './constants.js';
-import { deepFreeze as _deepFreeze } from '../utils/deepFreeze.js';
 
 /**
  * @typedef {Object} ProjectionResult
@@ -34,11 +37,10 @@ import { deepFreeze as _deepFreeze } from '../utils/deepFreeze.js';
  * @param {Array<{lat: number, lng: number}>} polyline - Ordered coordinates defining the corridor
  * @returns {ProjectionResult|null} The geometric projection, or null if geometry is invalid
  */
-export function projectPointOntoCorridor(point, polyline) {
+function projectPointOntoCorridor(point, polyline) {
   if (!point || typeof point.lat !== 'number' || typeof point.lng !== 'number') {
     return null;
   }
-  
   if (!Array.isArray(polyline) || polyline.length < 2) {
     return null;
   }
@@ -49,10 +51,8 @@ export function projectPointOntoCorridor(point, polyline) {
       return null;
     }
   }
-
   let bestProjection = null;
   let cumulativeDistance = 0;
-
   for (let i = 0; i < polyline.length - 1; i++) {
     const A = polyline[i];
     const B = polyline[i + 1];
@@ -63,31 +63,27 @@ export function projectPointOntoCorridor(point, polyline) {
 
     // Planar vector math scaled for latitude
     const dxAB = (B.lng - A.lng) * kx;
-    const dyAB = (B.lat - A.lat);
+    const dyAB = B.lat - A.lat;
     const dxAP = (point.lng - A.lng) * kx;
-    const dyAP = (point.lat - A.lat);
-
+    const dyAP = point.lat - A.lat;
     const len2 = dxAB * dxAB + dyAB * dyAB;
-    
     let t = 0;
-    if (len2 > GEOMETRIC_NUMERICAL_TOLERANCE) {
+    if (len2 > _constants.GEOMETRIC_NUMERICAL_TOLERANCE) {
       t = (dxAP * dxAB + dyAP * dyAB) / len2;
       // Clamp to segment endpoints
       t = Math.max(0, Math.min(1, t));
     }
-
     const projectedPoint = {
       lat: A.lat + t * (B.lat - A.lat),
       lng: A.lng + t * (B.lng - A.lng)
     };
+    const crossTrackDistanceMetres = (0, _haversine.haversineMetres)(point.lat, point.lng, projectedPoint.lat, projectedPoint.lng);
+    const alongSegmentDistanceMetres = (0, _haversine.haversineMetres)(A.lat, A.lng, projectedPoint.lat, projectedPoint.lng);
 
-    const crossTrackDistanceMetres = haversineMetres(point.lat, point.lng, projectedPoint.lat, projectedPoint.lng);
-    const alongSegmentDistanceMetres = haversineMetres(A.lat, A.lng, projectedPoint.lat, projectedPoint.lng);
-    
     // Evaluate if this segment provides a better projection.
     // Deterministic tie-breaking: if cross-track distance is identical within tolerance, 
     // we keep the earlier segment (bestProjection is not updated).
-    if (!bestProjection || crossTrackDistanceMetres < bestProjection.crossTrackDistanceMetres - TIE_BREAKING_TOLERANCE) {
+    if (!bestProjection || crossTrackDistanceMetres < bestProjection.crossTrackDistanceMetres - _constants.TIE_BREAKING_TOLERANCE) {
       bestProjection = {
         projectedPoint,
         crossTrackDistanceMetres,
@@ -98,8 +94,7 @@ export function projectPointOntoCorridor(point, polyline) {
     }
 
     // Accumulate total distance for the next segment's starting point
-    cumulativeDistance += haversineMetres(A.lat, A.lng, B.lat, B.lng);
+    cumulativeDistance += (0, _haversine.haversineMetres)(A.lat, A.lng, B.lat, B.lng);
   }
-
-  return bestProjection ? _deepFreeze(bestProjection) : null;
+  return bestProjection ? (0, _deepFreeze2.deepFreeze)(bestProjection) : null;
 }
