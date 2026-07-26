@@ -1,61 +1,104 @@
-import { createLogger } from '../utils/index.js';
-import { projectPointOntoCorridor, findNearestCorridorPoint, calculateUserSegmentFraction } from '../calculations/index.js';
-import { DEFAULT_THRESHOLDS } from '../config/thresholds.js';
-import { deepFreeze } from '../utils/deepFreeze.js';
-import { ResolutionStatus } from '../domain/types/enums.js';
-import { matchStationsToCorridor } from './station-matcher.js';
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.CorridorResolver = void 0;
+var _index = require("../utils/index.js");
+var _corridorGraph = require("./corridor-graph.js");
+var _corridorAssembly = require("../corridor-assembly/CorridorAssembly.js");
+var _projectionAdapter = require("../projection-adapter/ProjectionAdapter.js");
+var _seedWayResolver = require("./SeedWayResolver.js");
+var _stationMatcher = require("./station-matcher.js");
+var _resolverResponseFactory = require("./ResolverResponseFactory.js");
+var _thresholds = require("../config/thresholds.js");
+var { CorridorResolutionResult } = require("../models/CorridorResolutionResult.js");
 
-const log = createLogger('corridor-resolver');
+const log = (0, _index.createLogger)('corridor-resolver');
 
-export class CorridorResolver {
-    overpass;
-    constructor(overpass) {
-        this.overpass = overpass;
+class CorridorResolver {
+  overpass;
+
+  constructor(overpass) {
+    this.overpass = overpass;
+  }
+
+  /**
+   * Orchestrates the resolution of the nearest railway corridor to the given location.
+   * Strictly adheres to the Version 1.1 Architecture Amendment boundaries.
+   *
+   * @param {Object} location - GPS location {lat, lng}
+   * @param {number} radiusMetres - Search radius
+   */
+  async resolveNearest(location, radiusMetres) {
+    // 1. Data Fetch
+    // Retrieves raw spatial infrastructure data and cached stations.
+    const {
+      corridors,
+      stations,
+      elements
+    } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
+
+    if (corridors.length === 0) {
+      log.info('No corridors found near location', {
+        location,
+        radiusMetres
+      });
+      return null;
     }
-    
-    /**
-     * Finds the nearest railway corridor to the given location.
-     */
-    async resolveNearest(location, radiusMetres) {
-        const { corridors, stations } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
-        if (corridors.length === 0) {
-            log.info('No corridors found near location', { location, radiusMetres });
-            return null;
-        }
 
-        const nearestInfo = findNearestCorridorPoint(location, corridors);
-        if (!nearestInfo || !nearestInfo.nearestCorridor) {
-            return null;
-        }
-
-        const { nearestCorridor, nearestPointIndex, minDistance } = nearestInfo;
-        log.debug('Resolved nearest corridor', { id: nearestCorridor.id, minDistance });
-
-        const { totalLengthMetres, userSegmentFraction } = calculateUserSegmentFraction(
-            nearestCorridor.topology, 
-            nearestPointIndex
-        );
-
-        const stationsOutput = matchStationsToCorridor({
-            topology: nearestCorridor.topology,
-            stations,
-            thresholdMetres: DEFAULT_THRESHOLDS.STATION_CORRIDOR_MATCH_DISTANCE_METRES,
-            projectPointOntoCorridor
-        });
-
-        const projection = projectPointOntoCorridor(location, nearestCorridor.topology.points);
-        const closestPoint = projection
-            ? { lat: projection.projectedPoint.lat, lng: projection.projectedPoint.lng }
-            : null;
-
-        return deepFreeze({
-            corridorGeometry: nearestCorridor.topology.points,
-            stations: stationsOutput,
-            userSegmentFraction,
-            segmentLengthKm: totalLengthMetres / 1000,
-            nearestBoundingStations: null,
-            resolutionStatus: ResolutionStatus.UNRESOLVED,
-            closestPoint
-        });
+    // 2. Legacy Seed Selection
+    // Isolates the legacy heuristic that determines which physical track to use
+    // as the starting point for graph traversal.
+    const seedInfo = _seedWayResolver.resolveSeedWay(location, corridors);
+    if (!seedInfo) {
+      return null;
     }
+
+    log.debug('Resolved nearest corridor acting as seed way', {
+      id: seedInfo.seedWayId,
+      minDistance: seedInfo.minDistance
+    });
+
+    // 3. Graph Foundation
+    // Constructs the mathematical topological graph from the raw OSM elements,
+    // starting exactly from the chosen seed physical track.
+    // Boundary: Topology only. No routing. No geometry construction.
+    const { nodeCoords, ways } = _corridorGraph.indexOverpassElements(elements);
+    const graph = _corridorGraph.buildWayConnectivityGraph(ways);
+    const connectedComponent = _corridorGraph.findConnectedWays(seedInfo.seedWayId, graph);
+
+    // 4. Corridor Assembly
+    // Transforms the abstract graph topology into a physically traversable multi-branch geometry.
+    // Boundary: Geometry assembly only. No operational routing. No mathematical projection.
+    const assembledCorridor = _corridorAssembly.assemble(connectedComponent, graph, ways, nodeCoords);
+
+    // 5. Projection Adapter
+    // Evaluates every traversable segment simultaneously to compute the absolute closest mathematical point.
+    // Boundary: Strict mathematical projection. Topology and segment choice remain intentionally hidden.
+    const projection = _projectionAdapter.projectOntoCorridor(assembledCorridor, location);
+
+    // 6. Station Matching
+    // Executes station matching directly against the mathematical projection service.
+    // Boundary: Consumes projection only. Station matcher is no longer coupled to graph topology.
+    const stationsOutput = (0, _stationMatcher.matchStationsToCorridor)({
+      assembledCorridor,
+      stations,
+      thresholdMetres: _thresholds.DEFAULT_THRESHOLDS.STATION_CORRIDOR_MATCH_DISTANCE_METRES,
+      projectOntoCorridor: _projectionAdapter.projectOntoCorridor
+    });
+
+    // 7. Resolver Response Factory
+    // Constructs the final deterministic payload.
+    // Boundary: Enforces Version 1.1 separation between Graph-Relative and Route-Relative metrics.
+    const response = _resolverResponseFactory.createResponse(projection, stationsOutput);
+
+    // Explicit immutable contract for pipeline execution
+    return new CorridorResolutionResult({
+      nearestCorridor: response,
+      assembledCorridor: assembledCorridor,
+      projectionResult: projection,
+      stationsOutput: stationsOutput
+    });
+  }
 }
+
+exports.CorridorResolver = CorridorResolver;

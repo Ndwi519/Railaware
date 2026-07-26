@@ -6,12 +6,39 @@ describe('TrainDiscoveryService', () => {
   let mockStationResolver;
   let mockStrategyManager;
   let mockMapper;
+  let mockDirectionalInference;
+  let mockBranchEvidenceBuilder;
+  let mockRouteSelection;
+  let mockRouteContextBuilder;
+
+  let discoveryContext;
 
   beforeEach(() => {
     mockCorridorResolver = { resolveNearest: jest.fn() };
     mockStationResolver = { resolve: jest.fn() };
     mockStrategyManager = { discover: jest.fn().mockResolvedValue({ providerErrors: [], diagnostics: [], finalResult: null }) };
     mockMapper = { map: jest.fn() };
+
+    mockDirectionalInference = { inferDirection: jest.fn() };
+    mockBranchEvidenceBuilder = { buildEvidence: jest.fn() };
+    mockRouteSelection = { evaluate: jest.fn() };
+    mockRouteContextBuilder = { buildContext: jest.fn() };
+
+    discoveryContext = {
+      observation: { latitude: 10, longitude: 20 },
+      sessionTrajectory: {}
+    };
+  });
+
+  const createService = (mappers = {}) => new TrainDiscoveryService({
+    corridorResolver: mockCorridorResolver,
+    stationResolver: mockStationResolver,
+    strategyManager: mockStrategyManager,
+    discoveryMappers: mappers,
+    directionalInference: mockDirectionalInference,
+    branchEvidenceBuilder: mockBranchEvidenceBuilder,
+    routeSelection: mockRouteSelection,
+    routeContextBuilder: mockRouteContextBuilder
   });
 
   it('should initialize DiscoveryContext properly and invert dependencies', async () => {
@@ -23,14 +50,12 @@ describe('TrainDiscoveryService', () => {
     });
     mockMapper.map.mockReturnValue({ trainTarget: '123', journey: {} });
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {
-      'Mock': mockMapper
-    });
+    const service = createService({ 'Mock': mockMapper });
 
-    await service.discoverTrain(10, 20);
+    await service.discoverTrain(discoveryContext);
 
     // Verify corridor resolved
-    expect(mockCorridorResolver.resolveNearest).toHaveBeenCalledWith({ lat: 10, lng: 20 }, 500);
+    expect(mockCorridorResolver.resolveNearest).toHaveBeenCalledWith({ lat: 10, lng: 20 }, 1500);
 
     // Verify context passed to StrategyManager
     expect(mockStrategyManager.discover).toHaveBeenCalledTimes(1);
@@ -57,16 +82,16 @@ describe('TrainDiscoveryService', () => {
   it('should fallback securely if nearest corridor is null', async () => {
     mockCorridorResolver.resolveNearest.mockResolvedValue(null);
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {});
-    
-    const result = await service.discoverTrain(10, 20);
-    
+    const service = createService();
+
+    const result = await service.discoverTrain(discoveryContext);
+
     expect(result.corridor).toBeNull();
     // Fallback creates a context and evaluates strategies anyway (e.g. for GPS provider that doesn't need a corridor)
     expect(mockStrategyManager.discover).toHaveBeenCalledTimes(1);
   });
 
-  it('Case 1: should return trains as null if discovery is skipped (not attempted)', async () => {
+  it('trains is null, not [], when provider was never queried — see documented semantic contract', async () => {
     mockCorridorResolver.resolveNearest.mockResolvedValue({ id: 'corridor-1' });
     mockStrategyManager.discover.mockResolvedValue({
       winningStrategy: null,
@@ -75,16 +100,17 @@ describe('TrainDiscoveryService', () => {
       skippedStrategies: ['railradar'],
       providerErrors: [],
       diagnostics: [],
-      finalResult: null
+      finalResult: null,
+      providerQueried: false
     });
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {});
-    const result = await service.discoverTrain(10, 20);
+    const service = createService();
+    const result = await service.discoverTrain(discoveryContext);
 
     expect(result.discoveredTrains).toBeNull();
   });
 
-  it('Case 2: should return trains as empty array if discovery is attempted and zero trains returned', async () => {
+  it('trains is [], not null, when provider was successfully queried and returned zero trains — see documented semantic contract', async () => {
     mockCorridorResolver.resolveNearest.mockResolvedValue({ id: 'corridor-1' });
     mockStrategyManager.discover.mockResolvedValue({
       winningStrategy: null,
@@ -93,16 +119,17 @@ describe('TrainDiscoveryService', () => {
       skippedStrategies: [],
       providerErrors: [],
       diagnostics: [],
-      finalResult: null
+      finalResult: null,
+      providerQueried: true
     });
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {});
-    const result = await service.discoverTrain(10, 20);
+    const service = createService();
+    const result = await service.discoverTrain(discoveryContext);
 
     expect(result.discoveredTrains).toEqual([]);
   });
 
-  it('Case 3: should return trains as populated array if discovery is attempted and trains returned', async () => {
+  it('trains is populated array when provider was successfully queried and found trains — see documented semantic contract', async () => {
     mockCorridorResolver.resolveNearest.mockResolvedValue({ id: 'corridor-1' });
     mockStrategyManager.discover.mockResolvedValue({
       winningStrategy: 'Mock Strategy',
@@ -114,14 +141,13 @@ describe('TrainDiscoveryService', () => {
       finalResult: {
         status: 'SUCCESS',
         discoveredTrains: [{ id: 'TRAIN-123' }]
-      }
+      },
+      providerQueried: true
     });
     mockMapper.map.mockReturnValue({ trainTarget: 'TRAIN-123', journey: {} });
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {
-      'mock-strategy': mockMapper
-    });
-    const result = await service.discoverTrain(10, 20);
+    const service = createService({ 'mock-strategy': mockMapper });
+    const result = await service.discoverTrain(discoveryContext);
 
     expect(result.discoveredTrains).toEqual([{ id: 'TRAIN-123' }]);
     expect(mockMapper.map).toHaveBeenCalledTimes(1);
@@ -131,7 +157,7 @@ describe('TrainDiscoveryService', () => {
     }, expect.any(Object));
   });
 
-  it('Case 4: should return trains as null if discovery is attempted but provider failure / throws', async () => {
+  it('trains is null when provider failure throws or yields error — see documented semantic contract', async () => {
     mockCorridorResolver.resolveNearest.mockResolvedValue({ id: 'corridor-1' });
     mockStrategyManager.discover.mockResolvedValue({
       winningStrategy: null,
@@ -140,11 +166,12 @@ describe('TrainDiscoveryService', () => {
       skippedStrategies: [],
       providerErrors: ['Rate Limit Exceeded'],
       diagnostics: [],
-      finalResult: null
+      finalResult: null,
+      providerQueried: true
     });
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {});
-    const result = await service.discoverTrain(10, 20);
+    const service = createService();
+    const result = await service.discoverTrain(discoveryContext);
 
     expect(result.discoveredTrains).toBeNull();
     expect(result.providerError).toBe('Rate Limit Exceeded');
@@ -162,18 +189,44 @@ describe('TrainDiscoveryService', () => {
       finalResult: {
         status: 'SUCCESS',
         discoveredTrains: [{ id: 'TRAIN-123' }]
-      }
+      },
+      providerQueried: true
     });
 
-    const service = new TrainDiscoveryService(mockCorridorResolver, mockStationResolver, mockStrategyManager, {});
-    
+    const service = createService();
+
     let result;
     await expect((async () => {
-      result = await service.discoverTrain(10, 20);
+      result = await service.discoverTrain(discoveryContext);
     })()).resolves.not.toThrow();
 
     expect(result.trainTarget).toBeNull();
     expect(result.journey).toBeNull();
     expect(result.discoveredTrains).toEqual([{ id: 'TRAIN-123' }]);
+  });
+
+  it('should not expose Route Selection or internal compatibility fields in public API response (Priority 2 Regression)', async () => {
+    // Setup a mock corridor that looks like what resolver returns
+    mockCorridorResolver.resolveNearest.mockResolvedValue({
+      nearestCorridor: { id: 'corridor-1' },
+      assembledCorridor: { getTraversableSegments: () => [], getBranchId: () => 'branch_1' },
+      projectionResult: { corridorSegmentIndex: 0, alongTrackDistanceMetres: 10 },
+      stationsOutput: []
+    });
+
+    mockDirectionalInference.inferDirection.mockReturnValue({});
+    mockBranchEvidenceBuilder.buildEvidence.mockReturnValue({});
+    mockRouteSelection.evaluate.mockReturnValue({ status: 'UNKNOWN' });
+
+    const service = createService();
+    const result = await service.discoverTrain(discoveryContext);
+
+    expect(result.corridor).not.toBeNull();
+    // Public API payload should not contain these fields
+    expect(result.corridor.routeSelection).toBeUndefined();
+    expect(result.corridor._routeSelection).toBeUndefined();
+    expect(result.corridor.assembledCorridor).toBeUndefined();
+    expect(result.corridor.projectionResult).toBeUndefined();
+    expect(result.corridor.stationsOutput).toBeUndefined();
   });
 });
