@@ -19,18 +19,18 @@ function createCjsLogger(moduleName) {
       timestamp: new Date().toISOString(),
       level,
       module: moduleName,
-      message,
+      message
     };
     if (err instanceof Error) entry.error = err.message;
     process.stderr.write(JSON.stringify(entry) + '\n');
   }
-
   return {
-    debug: (msg) => emit('debug', msg),
-    info:  (msg) => emit('info', msg),
-    warn:  (msg) => emit('warn', msg),
-    error: (msg, err) => emit('error', msg, err),
+    debug: msg => emit('debug', msg),
+    info: msg => emit('info', msg),
+    warn: msg => emit('warn', msg),
+    error: (msg, err) => emit('error', msg, err)
   };
 }
-
-module.exports = { createCjsLogger };
+module.exports = {
+  createCjsLogger
+};

@@ -16,14 +16,21 @@ class RequestCache {
     if (this.cache.has(key)) {
       return this.cache.get(key);
     }
-    
+
     // Store the Promise immediately to prevent concurrent duplicate executions
-    const promise = Promise.resolve(factory()).catch(err => {
+    let promise;
+    try {
+      promise = Promise.resolve(factory());
+    } catch (e) {
+      promise = Promise.reject(e);
+    }
+
+    promise = promise.catch(err => {
       this.cache.delete(key);
       throw err;
     });
     this.cache.set(key, promise);
-    
+
     return promise;
   }
 

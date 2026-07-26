@@ -1,10 +1,19 @@
 const ProviderInterpreter = require('../domain/contracts/ProviderInterpreter.js');
-const { createObservation } = require('../domain/models/Observation.js');
-const { createTrain } = require('../domain/models/Train.js');
-const { createStation } = require('../domain/models/Station.js');
-const { createSegment } = require('../domain/models/Segment.js');
-const { TrainStatus } = require('../domain/types/enums.js');
-
+const {
+  createTrainObservation
+} = require('../domain/models/TrainObservation.js');
+const {
+  createTrain
+} = require('../domain/models/Train.js');
+const {
+  createStation
+} = require('../domain/models/Station.js');
+const {
+  createSegment
+} = require('../domain/models/Segment.js');
+const {
+  TrainStatus
+} = require('../domain/types/enums.js');
 class RailRadarProviderInterpreter extends ProviderInterpreter {
   /**
    * Translates a raw provider payload into a normalized Observation.
@@ -17,7 +26,6 @@ class RailRadarProviderInterpreter extends ProviderInterpreter {
     if (!snapshot || !snapshot.rawJson || typeof snapshot.rawJson !== 'object') {
       throw new Error('Invalid or missing snapshot payload');
     }
-
     const payload = snapshot.rawJson;
 
     // Train Mapping
@@ -39,25 +47,22 @@ class RailRadarProviderInterpreter extends ProviderInterpreter {
 
     // Topology Mapping
     const currentLocation = payload.currentLocation || {};
-    
+
     // Explicitly prohibit smoothing or inference. If absent, set null.
     let segmentProgress = null;
     if (typeof currentLocation.segmentProgress === 'number') {
       segmentProgress = currentLocation.segmentProgress;
     }
-
     let currentSegment = null;
     if (currentLocation.previousStation) {
-      const prevStation = createStation({ 
+      const prevStation = createStation({
         code: currentLocation.previousStation,
         name: currentLocation.previousStationName || currentLocation.previousStation
       });
-      
       const nextStation = currentLocation.nextStation ? createStation({
         code: currentLocation.nextStation,
         name: currentLocation.nextStationName || currentLocation.nextStation
       }) : null;
-      
       currentSegment = createSegment({
         previousStation: prevStation,
         nextStation: nextStation
@@ -80,7 +85,7 @@ class RailRadarProviderInterpreter extends ProviderInterpreter {
     }
 
     // Return the immutable Observation model directly.
-    return createObservation({
+    return createTrainObservation({
       id: snapshot.id,
       train,
       status,
@@ -88,9 +93,9 @@ class RailRadarProviderInterpreter extends ProviderInterpreter {
       currentSegment,
       delayMinutes,
       lastUpdatedAt,
+      isActualPosition: payload.isActualPosition ?? false,
       recordedAt: snapshot.capturedAt || new Date()
     });
   }
 }
-
 module.exports = RailRadarProviderInterpreter;

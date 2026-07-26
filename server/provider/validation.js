@@ -1,41 +1,41 @@
-import { z } from 'zod';
-
-export const DiscoverTrainsSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
-    trains: z.array(
-      z.object({
-        train: z.object({
-          number: z.union([z.string(), z.number()]).transform(String),
-          name: z.string().optional(),
-        }),
-        from: z.object({
-          departure: z.string().optional(),
-        }).optional(),
-        to: z.object({
-          arrival: z.string().optional(),
-        }).optional(),
-      })
-    ).optional(),
-  }).optional(),
+Object.defineProperty(exports, "__esModule", {
+  value: true
 });
-
-export const LiveTrainProgressSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
-    trainNumber: z.union([z.string(), z.number()]).transform(String).optional(),
-    status: z.string().optional(),
-    previousHalt: z.object({
-      stationCode: z.string(),
+exports.LiveTrainProgressSchema = exports.DiscoverTrainsSchema = void 0;
+var _zod = require("zod");
+const DiscoverTrainsSchema = exports.DiscoverTrainsSchema = _zod.z.object({
+  success: _zod.z.boolean(),
+  data: _zod.z.object({
+    trains: _zod.z.array(_zod.z.object({
+      train: _zod.z.object({
+        number: _zod.z.union([_zod.z.string(), _zod.z.number()]).transform(String),
+        name: _zod.z.string().optional()
+      }),
+      from: _zod.z.object({
+        departure: _zod.z.string().optional()
+      }).optional(),
+      to: _zod.z.object({
+        arrival: _zod.z.string().optional()
+      }).optional()
+    })).optional()
+  }).optional()
+});
+const LiveTrainProgressSchema = exports.LiveTrainProgressSchema = _zod.z.object({
+  success: _zod.z.boolean(),
+  data: _zod.z.object({
+    trainNumber: _zod.z.union([_zod.z.string(), _zod.z.number()]).transform(String).optional(),
+    status: _zod.z.string().optional(),
+    previousHalt: _zod.z.object({
+      stationCode: _zod.z.string()
     }).optional(),
-    nextHalt: z.object({
-      stationCode: z.string(),
+    nextHalt: _zod.z.object({
+      stationCode: _zod.z.string()
     }).optional(),
-    currentLocation: z.object({
-      stationCode: z.string().optional(),
-      segmentProgress: z.number().optional(),
+    currentLocation: _zod.z.object({
+      stationCode: _zod.z.string().optional(),
+      segmentProgress: _zod.z.number().optional()
     }).optional(),
-    lastUpdatedAt: z.string().optional(),
-    isLive: z.boolean().optional(),
-  }).optional(),
+    lastUpdatedAt: _zod.z.string().optional(),
+    isLive: _zod.z.boolean().optional()
+  }).optional()
 });

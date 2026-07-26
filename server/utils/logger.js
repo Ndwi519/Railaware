@@ -8,7 +8,7 @@
  * @param {string} module 
  * @param {string} [correlationId] 
  */
-export function createLogger(module, correlationId) {
+function createLogger(module, correlationId) {
   function emit(level, message, context, err) {
     const entry = {
       timestamp: new Date().toISOString(),
@@ -36,3 +36,5 @@ export function createLogger(module, correlationId) {
     child: (cid) => createLogger(module, cid),
   };
 }
+
+module.exports = { createLogger };

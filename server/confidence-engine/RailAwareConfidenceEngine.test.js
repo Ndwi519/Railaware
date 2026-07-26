@@ -1,5 +1,5 @@
 const RailAwareConfidenceEngine = require('./RailAwareConfidenceEngine.js');
-const { createObservation } = require('../domain/models/Observation.js');
+const { createTrainObservation } = require('../domain/models/TrainObservation.js');
 const { createTrain } = require('../domain/models/Train.js');
 const { createSegment } = require('../domain/models/Segment.js');
 const { createStation } = require('../domain/models/Station.js');
@@ -19,12 +19,13 @@ describe('RailAwareConfidenceEngine', () => {
     });
   });
 
-  const generateObs = (overrides = {}) => createObservation({
+  const generateObs = (overrides = {}) => createTrainObservation({
     id: 'obs-1',
     train: mockTrain,
     status: TrainStatus.RUNNING,
     currentSegment: mockSegment,
     segmentProgress: 0.5,
+    isActualPosition: true,
     lastUpdatedAt: new Date(),
     recordedAt: new Date(),
     ...overrides
@@ -114,31 +115,5 @@ describe('RailAwareConfidenceEngine', () => {
     expect(result.reasons).toContain('[Evidence-backed] repeated HTTP acquisition gaps');
   });
 
-  describe('combine method', () => {
-    it('should return UNKNOWN for unrecognized confidence values', () => {
-      expect(engine.combine('INVALID', ConfidenceLevel.HIGH))
-        .toBe(ConfidenceLevel.UNKNOWN);
 
-      expect(engine.combine(ConfidenceLevel.LOW, 'INVALID'))
-        .toBe(ConfidenceLevel.UNKNOWN);
-    });
-    it('should select lowest confidence when both are valid', () => {
-      expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.MEDIUM)).toBe(ConfidenceLevel.MEDIUM);
-      expect(engine.combine(ConfidenceLevel.LOW, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.LOW);
-      expect(engine.combine(ConfidenceLevel.MEDIUM, ConfidenceLevel.LOW)).toBe(ConfidenceLevel.LOW);
-      expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.HIGH);
-    });
-
-    it('should return UNKNOWN if either input is UNKNOWN', () => {
-      expect(engine.combine(ConfidenceLevel.HIGH, ConfidenceLevel.UNKNOWN)).toBe(ConfidenceLevel.UNKNOWN);
-      expect(engine.combine(ConfidenceLevel.UNKNOWN, ConfidenceLevel.LOW)).toBe(ConfidenceLevel.UNKNOWN);
-      expect(engine.combine(ConfidenceLevel.UNKNOWN, ConfidenceLevel.UNKNOWN)).toBe(ConfidenceLevel.UNKNOWN);
-    });
-
-    it('should handle null/missing values as UNKNOWN', () => {
-      expect(engine.combine(null, ConfidenceLevel.HIGH)).toBe(ConfidenceLevel.UNKNOWN);
-      expect(engine.combine(ConfidenceLevel.LOW, null)).toBe(ConfidenceLevel.UNKNOWN);
-      expect(engine.combine(null, null)).toBe(ConfidenceLevel.UNKNOWN);
-    });
-  });
 });

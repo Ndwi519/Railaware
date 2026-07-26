@@ -44,8 +44,14 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
     // Repeated HTTP gaps
     let gaps = 0;
     for (let i = 1; i < observationHistory.length; i++) {
-      const prevTime = observationHistory[i - 1].recordedAt.getTime();
-      const currTime = observationHistory[i].recordedAt.getTime();
+      const prevObs = observationHistory[i - 1];
+      const currObs = observationHistory[i];
+      if (!(prevObs.recordedAt instanceof Date) || isNaN(prevObs.recordedAt.getTime()) ||
+          !(currObs.recordedAt instanceof Date) || isNaN(currObs.recordedAt.getTime())) {
+        continue; // Skip gap calculation if recordedAt is invalid (defensive check)
+      }
+      const prevTime = prevObs.recordedAt.getTime();
+      const currTime = currObs.recordedAt.getTime();
       if (currTime - prevTime > 2 * 60 * 1000) {
         gaps++;
       }
@@ -69,7 +75,21 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
       reasons.push('[Engineering decision] missing optional fields');
     }
 
-    const ageMs = new Date() - (currentObservation.lastUpdatedAt || currentObservation.recordedAt);
+    if (currentObservation.isActualPosition === false) {
+      forceMedium = true;
+      reasons.push('[Implementation policy] Provider emitted isActualPosition=false');
+    }
+
+    let currentObservationTimestamp = null;
+    if (currentObservation.lastUpdatedAt instanceof Date && !isNaN(currentObservation.lastUpdatedAt.getTime())) {
+      currentObservationTimestamp = currentObservation.lastUpdatedAt;
+    } else if (currentObservation.recordedAt instanceof Date && !isNaN(currentObservation.recordedAt.getTime())) {
+      currentObservationTimestamp = currentObservation.recordedAt;
+    } else {
+      throw new Error('Invalid Observation: missing both lastUpdatedAt and recordedAt');
+    }
+
+    const ageMs = new Date() - currentObservationTimestamp;
     if (ageMs > this.staleThresholdMs) {
       forceMedium = true;
       reasons.push('[Engineering decision] stale observation');
@@ -108,10 +128,10 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
     }
 
     // --- Resolve Hierarchy ---
-    if (level !== ConfidenceLevel.UNKNOWN || forceLow || forceMedium) {
+    if (level !== ConfidenceLevel.UNKNOWN) {
       if (forceLow) {
         level = ConfidenceLevel.LOW;
-      } else if (forceMedium && level !== ConfidenceLevel.UNKNOWN) {
+      } else if (forceMedium) {
         level = ConfidenceLevel.MEDIUM;
       }
     }
@@ -125,31 +145,12 @@ class RailAwareConfidenceEngine extends ConfidenceEngine {
 
     return createConfidenceAssessment({
       level,
+      topologyConfidence: ConfidenceLevel.UNKNOWN, // Assigned by orchestrator
+      observationConfidence: level,
+      providerReliability: ConfidenceLevel.UNASSESSED, // Pending Phase 4 metrics
       reasons,
       assessedAt: new Date()
     });
-  }
-
-  /**
-   * Combines two confidence levels, returning the most conservative confidence level.
-   * Treats UNKNOWN as dominant (returns UNKNOWN if either input is UNKNOWN or null).
-   * 
-   * @param {string|null} topologyConfidence - The confidence of the resolved topology.
-   * @param {string|null} observationConfidence - The confidence of the active train observation.
-   * @returns {string} The combined conservative confidence level.
-   */
-  combine(topologyConfidence, observationConfidence) {
-    const tConf = topologyConfidence || ConfidenceLevel.UNKNOWN;
-    const oConf = observationConfidence || ConfidenceLevel.UNKNOWN;
-    // Defensive validation: unknown enum values are treated conservatively.
-    if (!(tConf in ConfidenceRanking) || !(oConf in ConfidenceRanking)) {
-      return ConfidenceLevel.UNKNOWN;
-    }
-    if (tConf === ConfidenceLevel.UNKNOWN || oConf === ConfidenceLevel.UNKNOWN) {
-      return ConfidenceLevel.UNKNOWN;
-    }
-
-    return ConfidenceRanking[tConf] <= ConfidenceRanking[oConf] ? tConf : oConf;
   }
 }
 

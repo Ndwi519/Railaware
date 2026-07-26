@@ -1,4 +1,4 @@
-import { ConfigurationError } from '../utils/errors.js';
+const { ConfigurationError } = require('../utils/errors.js');
 
 /**
  * Load and validate all required environment variables.
@@ -6,7 +6,7 @@ import { ConfigurationError } from '../utils/errors.js';
  * Call once at process startup.
  * @returns {Object} AppConfig
  */
-export function loadEnv() {
+function loadEnv() {
   const railradarKey = requireEnv('RAILRADAR_KEY');
   const rawPort = process.env['PORT'] ?? '3001';
   const port = Number(rawPort);
@@ -19,13 +19,24 @@ export function loadEnv() {
     throw new ConfigurationError(`NODE_ENV must be development | production | test, got: "${rawEnv}"`);
   }
 
+  const rawCors = process.env['CORS_ORIGINS'];
+  const corsOrigins = rawCors ? rawCors.split(',').map(s => s.trim()) : ['http://localhost:5173'];
+
   const railradarMinEvidence = process.env['RAILRADAR_MIN_EVIDENCE'] ?? 'VERIFIED_TOPOLOGY';
+
+  const emergencyPhoneNumber = process.env['EMERGENCY_PHONE_NUMBER'] || null;
 
   return {
     railradarKey,
     railradarMinEvidence,
+    emergencyPhoneNumber,
+    provider: {
+      timeoutMs: process.env['PROVIDER_TIMEOUT_MS'] ? parseInt(process.env['PROVIDER_TIMEOUT_MS'], 10) : 3000,
+      retryCount: process.env['PROVIDER_RETRY_COUNT'] ? parseInt(process.env['PROVIDER_RETRY_COUNT'], 10) : 2,
+    },
     port,
     nodeEnv: rawEnv,
+    corsOrigins,
     apiUrl: process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001',
     overpass: {
       url: process.env['OVERPASS_URL'] ?? 'https://overpass-api.de/api/interpreter',
@@ -33,8 +44,8 @@ export function loadEnv() {
       cacheTtlSuccessMs: 30 * 60 * 1000,
       cacheTtlNoCorridorMs: 10 * 60 * 1000,
       cacheTtlTransientFailureMs: 45 * 1000,
-      maxAttempts: 4,
-      retryDelaysMs: [0, 500, 1000, 2000],
+      maxAttempts: 2,
+      retryDelaysMs: [0, 500],
       requestTimeoutMs: 10000,
     }
   };
@@ -50,3 +61,5 @@ function requireEnv(name) {
   }
   return val;
 }
+
+module.exports = { loadEnv };
