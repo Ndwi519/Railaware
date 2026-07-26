@@ -1,0 +1,54 @@
+{
+  "id": "scenario-1",
+  "name": "Approaching Danger Zone With High Latency",
+  "description": "Tests how the system handles a train rapidly approaching while the provider data is highly delayed.",
+  "trainTarget": "12903",
+  "corridorData": {
+    "stations": [
+      { "feature": { "station": { "code": "A" } }, "alongTrackDistanceMetres": 0 },
+      { "feature": { "station": { "code": "B" } }, "alongTrackDistanceMetres": 5000 },
+      { "feature": { "station": { "code": "C" } }, "alongTrackDistanceMetres": 10000 }
+    ],
+    "route": [
+      { "lat": 27.0, "lng": 75.0 },
+      { "lat": 27.0, "lng": 75.1 }
+    ],
+    "targetStation": { "code": "B" },
+    "stationResolutionDetails": {
+      "status": "RESOLVED",
+      "confidence": "HIGH"
+    }
+  },
+  "ticks": [
+    {
+      "timeOffsetMs": 0,
+      "truth": {
+        "location": { "lat": 27.0, "lng": 75.05 },
+        "groundTruthAwarenessState": "DISTANT"
+      },
+      "providerData": {
+        "status": "running",
+        "delayMinutes": 5,
+        "previousHalt": { "stationCode": "A", "distance": 0 },
+        "nextHalt": { "stationCode": "B", "distance": 5000 },
+        "segmentProgress": 0.2
+      },
+      "userLocation": { "lat": 27.0, "lng": 75.1 }
+    },
+    {
+      "timeOffsetMs": 10000,
+      "truth": {
+        "location": { "lat": 27.0, "lng": 75.09 },
+        "groundTruthAwarenessState": "APPROACHING_STATION"
+      },
+      "providerData": {
+        "status": "running",
+        "delayMinutes": 10,
+        "previousHalt": { "stationCode": "A", "distance": 0 },
+        "nextHalt": { "stationCode": "B", "distance": 5000 },
+        "segmentProgress": 0.3
+      },
+      "userLocation": { "lat": 27.0, "lng": 75.1 }
+    }
+  ]
+}
