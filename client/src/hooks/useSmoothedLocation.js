@@ -25,7 +25,9 @@ export function useSmoothedLocation(rawPosition, smoothingFactor = 0.3) {
     const newLat = smoothed[0] + smoothingFactor * (rawPosition[0] - smoothed[0]);
     const newLng = smoothed[1] + smoothingFactor * (rawPosition[1] - smoothed[1]);
     
-    setSmoothed([newLat, newLng]);
+    if (calculateDistance(smoothed, [newLat, newLng]) > 1.0) {
+      setSmoothed([newLat, newLng]);
+    }
     lastRawRef.current = rawPosition;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawPosition]); // Intentionally omitting smoothed and smoothingFactor to prevent feedback loops

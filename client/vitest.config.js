@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
+    pool: 'forks',
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',

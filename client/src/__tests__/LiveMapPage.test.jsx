@@ -42,13 +42,21 @@ describe('LiveMapPage', () => {
         const mockResponse = {
             observation: { phase: 'observing' },
             awareness: { status: 'DISTANT', distanceMetres: 1200 },
-            corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED', attempts: [{ success: true, strategy: 'TestStrategy' }] } },
-            trains: [{id: '1'}],
-            metadata: { providerError: null }
+            assistance: {
+                guidance: { title: 'Assistance Info', instructions: ['Do not cross.'] },
+                availableActions: ['DIAL_EMERGENCY'],
+                emergencyContact: { number: '911', description: 'Emergency' }
+            },
+            discoveryContext: {
+                corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED', attempts: [{ success: true, strategy: 'TestStrategy' }] } },
+                discoveredTrains: [{id: '1'}],
+                providerError: null
+            }
         };
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
+            headers: { get: vi.fn() },
             json: async () => mockResponse
         });
 
@@ -61,6 +69,11 @@ describe('LiveMapPage', () => {
         expect(screen.getByText('On Railway Corridor')).toBeInTheDocument();
         expect(screen.getByText(/1 Trains Estimated/i)).toBeInTheDocument();
         expect(screen.getByText(/TestStrategy/i)).toBeInTheDocument();
+
+        // Assert Assistance Guidance
+        expect(screen.getByText('Assistance Info')).toBeInTheDocument();
+        expect(screen.getByText('Do not cross.')).toBeInTheDocument();
+        expect(screen.getByText('📞 Call Emergency')).toBeInTheDocument();
     });
 
     it('renders UNRESOLVED topological gap state', async () => {
@@ -71,12 +84,15 @@ describe('LiveMapPage', () => {
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
+            headers: { get: vi.fn() },
             json: async () => ({
                 observation: { },
                 awareness: { status: 'UNKNOWN' },
-                corridor: { resolutionStatus: 'UNRESOLVED', stationResolutionDetails: { status: 'UNRESOLVED' } },
-                trains: [],
-                metadata: { providerError: null }
+                discoveryContext: {
+                    corridor: { resolutionStatus: 'UNRESOLVED', stationResolutionDetails: { status: 'UNRESOLVED' } },
+                    discoveredTrains: null,
+                    providerError: null
+                }
             })
         });
 
@@ -96,7 +112,8 @@ describe('LiveMapPage', () => {
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: false,
-            status: 500
+            status: 500,
+            headers: { get: vi.fn() }
         });
 
         await act(async () => {
@@ -124,6 +141,7 @@ describe('LiveMapPage', () => {
             .mockImplementationOnce(() => firstFetchPromise)
             .mockResolvedValue({
                 ok: true,
+                headers: { get: vi.fn() },
                 json: async () => ({ observation: {}, awareness: {} })
             });
 
@@ -136,11 +154,11 @@ describe('LiveMapPage', () => {
         expect(firstSignal.aborted).toBe(false);
 
         const { fireEvent } = await import('@testing-library/react');
-        
+
         // Open dev panel and enable simulation
         const toggleBtn = screen.getByTitle('Developer Diagnostics');
         fireEvent.click(toggleBtn);
-        
+
         const enableBtn = screen.getByText('ENABLE SIMULATION');
         fireEvent.click(enableBtn);
 
@@ -162,6 +180,7 @@ describe('LiveMapPage', () => {
         await act(async () => {
             resolveFirstFetch({
                 ok: true,
+                headers: { get: vi.fn() },
                 json: async () => ({ observation: {}, awareness: {} })
             });
         });
@@ -209,6 +228,7 @@ describe('LiveMapPage', () => {
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
+            headers: { get: vi.fn() },
             json: async () => ({
                 observation: { phase: 'observing', trackPresence: 'no' },
                 awareness: { status: 'DISTANT' },
@@ -223,7 +243,7 @@ describe('LiveMapPage', () => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
 
         const { fireEvent } = await import('@testing-library/react');
-        
+
         fireEvent.click(screen.getByTitle('Developer Diagnostics'));
         fireEvent.click(screen.getByText('ENABLE SIMULATION'));
 
@@ -262,7 +282,7 @@ describe('LiveMapPage', () => {
 
         // 6. Disable simulation -> +1 fetch (teleports back to real GPS 10,20) (total 6)
         await act(async () => {
-            fireEvent.click(screen.getByText('SIMULATION ACTIVE')); 
+            fireEvent.click(screen.getByText('SIMULATION ACTIVE'));
         });
         expect(global.fetch).toHaveBeenCalledTimes(6);
 
@@ -281,12 +301,15 @@ describe('LiveMapPage', () => {
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
+            headers: { get: vi.fn() },
             json: async () => ({
                 observation: { },
                 awareness: { status: 'UNKNOWN' },
-                corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
-                trains: null,
-                metadata: { providerError: null }
+                discoveryContext: {
+                    corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
+                    discoveredTrains: null,
+                    providerError: null
+                }
             })
         });
 
@@ -305,12 +328,15 @@ describe('LiveMapPage', () => {
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
+            headers: { get: vi.fn() },
             json: async () => ({
                 observation: { },
                 awareness: { status: 'UNKNOWN' },
-                corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
-                trains: null,
-                metadata: { providerError: 'Rate Limit Exceeded' }
+                discoveryContext: {
+                    corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
+                    discoveredTrains: null,
+                    providerError: 'Rate Limit Exceeded'
+                }
             })
         });
 

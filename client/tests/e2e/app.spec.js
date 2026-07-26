@@ -11,8 +11,8 @@ test.describe('RailAware E2E', () => {
     // Mock API response
     await page.route('**/api/v1/observation', async (route) => {
       const json = {
-        observation: { phase: 'observing', trackPresence: 'yes' },
-        risk: { level: 'low', recommendedAction: 'None' },
+        observation: { status: 'UNKNOWN' },
+        awareness: { status: 'DISTANT', requiresProminentDisplay: false },
       };
       await route.fulfill({ json });
     });
@@ -21,5 +21,8 @@ test.describe('RailAware E2E', () => {
 
     // Check if the title or main container is visible
     await expect(page.locator('.leaflet-container')).toBeVisible({ timeout: 10000 });
+
+    // Verify the awareness pipeline is rendering
+    await expect(page.getByText('Status: Distant')).toBeVisible();
   });
 });

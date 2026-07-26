@@ -14,6 +14,7 @@ describe('ObservationService', () => {
     const mockData = { id: 1, name: 'Test Observation' };
     mockFetch.mockResolvedValueOnce({
       ok: true,
+      headers: { get: vi.fn().mockReturnValue('test-session') },
       json: async () => mockData
     });
 

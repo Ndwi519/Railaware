@@ -14,12 +14,12 @@ describe('useSmoothedLocation', () => {
             { initialProps: { pos: [10.0, 20.0] } }
         );
         
-        // Small move
-        rerender({ pos: [10.2, 20.2] });
+        // Small move (0.0002 degrees is ~22 meters, well below 500m)
+        rerender({ pos: [10.0002, 20.0002] });
         
-        // Expected: 10 + 0.5 * (10.2 - 10) = 10.1
-        expect(result.current[0]).toBeCloseTo(10.1);
-        expect(result.current[1]).toBeCloseTo(20.1);
+        // Expected: 10 + 0.5 * (10.0002 - 10) = 10.0001
+        expect(result.current[0]).toBeCloseTo(10.0001);
+        expect(result.current[1]).toBeCloseTo(20.0001);
     });
 
     it('snaps immediately on large distance changes', () => {

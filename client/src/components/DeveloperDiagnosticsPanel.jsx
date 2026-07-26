@@ -174,10 +174,10 @@ export default function DeveloperDiagnosticsPanel({
                   <h3 className="text-emerald-400 font-semibold uppercase tracking-wider text-[10px] mb-2">Corridor Resolver</h3>
                   <pre className="bg-slate-950 p-2 rounded border border-slate-800 overflow-x-auto">
                     {JSON.stringify({
-                      status: observationData.corridor?.resolutionStatus,
-                      trackPresence: !!observationData.corridor,
-                      stations: observationData.corridor?.nearestBoundingStations,
-                      fraction: observationData.corridor?.userSegmentFraction?.toFixed(4)
+                      status: observationData.discoveryContext?.corridor?.resolutionStatus,
+                      trackPresence: !!observationData.discoveryContext?.corridor,
+                      stations: observationData.discoveryContext?.corridor?.nearestBoundingStations,
+                      fraction: observationData.discoveryContext?.corridor?.userSegmentFraction?.toFixed(4)
                     }, null, 2)}
                   </pre>
                 </div>
@@ -192,39 +192,21 @@ export default function DeveloperDiagnosticsPanel({
                 <div>
                   <h3 className="text-emerald-400 font-semibold uppercase tracking-wider text-[10px] mb-2">Provider Diagnostics</h3>
                   <div className="bg-slate-950 p-2 rounded border border-slate-800 overflow-x-auto text-purple-300 space-y-2">
-                    {observationData.metadata?.diagnostics ? (
+                    {observationData.discoveryContext ? (
                       <>
-                        <div><strong className="text-purple-400">Station Resolution:</strong> {observationData.metadata.diagnostics.stationResolution?.status || 'Unknown'}</div>
+                        <div><strong className="text-purple-400">Station Resolution:</strong> {observationData.discoveryContext.corridor?.stationResolutionDetails?.status || 'Unknown'}</div>
                         <ul className="list-disc pl-4 text-[10px] text-slate-400 mb-2">
-                          {observationData.metadata.diagnostics.stationResolution?.attempts?.map((attempt, i) => (
+                          {observationData.discoveryContext.corridor?.stationResolutionDetails?.attempts?.map((attempt, i) => (
                              <li key={i}>{attempt.strategy}: {attempt.reason}</li>
                           ))}
                         </ul>
                         
-                        <div><strong className="text-purple-400">Train Resolution:</strong> {observationData.metadata.diagnostics.trainResolution || 'Unknown'}</div>
+                        <div><strong className="text-purple-400">Train Resolution:</strong> {observationData.discoveryContext.strategyDiagnostics?.[0]?.status || 'Unknown'}</div>
                         
-                        <div><strong className="text-purple-400">Risk Reasons:</strong></div>
-                        <ul className="list-disc pl-4 text-[10px] text-slate-400 mb-2">
-                          {observationData.metadata.diagnostics.riskReasons?.map((reason, i) => (
-                             <li key={i}>{reason}</li>
-                          ))}
-                        </ul>
-
-                        <div><strong className="text-purple-400">Provider Requests:</strong></div>
-                        <div className="space-y-1">
-                          {(!observationData.metadata.diagnostics.providerRequests || observationData.metadata.diagnostics.providerRequests.length === 0) ? <span className="text-[10px] text-slate-500">None</span> : null}
-                          {observationData.metadata.diagnostics.providerRequests?.map((req, i) => (
-                             <div key={i} className="text-[10px] text-slate-400 border border-slate-800 p-1 rounded">
-                               <div><span className="font-bold text-slate-300">Endpoint:</span> {req.endpoint}</div>
-                               <div><span className="font-bold text-slate-300">Status:</span> {req.status}</div>
-                               <div><span className="font-bold text-slate-300">Summary:</span> {req.responseSummary}</div>
-                             </div>
-                          ))}
-                        </div>
                         <div><strong className="text-purple-400">Execution Trace:</strong></div>
                         <div className="space-y-1">
-                          {(!observationData.metadata.executionTrace?.stages || observationData.metadata.executionTrace.stages.length === 0) ? <span className="text-[10px] text-slate-500">None</span> : null}
-                          {observationData.metadata.executionTrace?.stages?.map((stage, i) => (
+                          {(!observationData.discoveryContext.trace?.stages || observationData.discoveryContext.trace.stages.length === 0) ? <span className="text-[10px] text-slate-500">None</span> : null}
+                          {observationData.discoveryContext.trace?.stages?.map((stage, i) => (
                              <div key={i} className="text-[10px] text-slate-400 border border-slate-800 p-1 rounded">
                                <div className="flex justify-between"><strong className="text-slate-300">{stage.stage}</strong> <span>{stage.elapsedTimeMs}ms</span></div>
                                <div><span className="font-bold text-slate-300">Status:</span> {stage.status}</div>

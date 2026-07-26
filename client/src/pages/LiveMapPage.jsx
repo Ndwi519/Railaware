@@ -69,27 +69,21 @@ export default function LiveMapPage() {
   };
 
   const isDev = import.meta.env.DEV;
-  // Explicitly note: This trigger condition is intentionally tied to the current 
-  // awareness.status values as a temporary UI implementation. It is not a permanent 
-  // product rule. If new awareness.status values are introduced in the future, 
-  // this condition must be re-evaluated rather than assuming APPROACHING_STATION 
-  // and AT_STATION remain the only states that justify a prominent awareness overlay.
-  const isTrainNearby =
-    observationData?.awareness?.status === 'APPROACHING_STATION' ||
-    observationData?.awareness?.status === 'AT_STATION';
+
+  const isTrainNearby = observationData?.awareness?.requiresProminentDisplay === true;
 
   return (
     <div className="relative flex w-full h-screen bg-slate-50 overflow-hidden font-sans">
-      
+
       {/* Left Sidebar */}
-      <AwarenessSidebar 
-        observationData={observationData} 
-        isTrainNearby={isTrainNearby} 
+      <AwarenessSidebar
+        observationData={observationData}
+        isTrainNearby={isTrainNearby}
       />
 
       {/* Main Map Container */}
       <div className="flex-1 relative h-full min-w-0">
-        
+
         {/* Background Map layer */}
         <div className="absolute inset-0 z-0">
           <LiveMap

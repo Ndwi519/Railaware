@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LiveMapPage from './pages/LiveMapPage';
 import DiagnosticsPage from './pages/Diagnostics';
+import EvaluationPage from './pages/EvaluationPage';
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LiveMapPage />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
+          <Route path="/evaluation" element={<EvaluationPage />} />
         </Routes>
       </BrowserRouter>
     </div>
