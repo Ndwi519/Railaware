@@ -4,16 +4,15 @@
  *
  * When a train is discovered but no Journey can be constructed (because the provider
  * does not supply sufficient topology for station-based routing), RailAwareService
- * must return UNKNOWN risk instead of throwing.
+ * must return UNKNOWN awareness instead of throwing.
  */
 const RailAwareService = require('../services/RailAwareService.js');
-const { RiskLevel, TrainStatus, DiscoveryStatus } = require('../../domain/types/enums.js');
-const { createObservation } = require('../../domain/models/Observation.js');
+const { TrainStatus } = require('../../domain/types/enums.js');
+const { createTrainObservation } = require('../../domain/models/TrainObservation.js');
 const { createTrain } = require('../../domain/models/Train.js');
-const LegacyApiMapper = require('../mappers/LegacyApiMapper.js');
-const RailAwareRiskEngine = require('../../risk-engine/RailAwareRiskEngine.js');
+const RailAwareAwarenessEngine = require('../../awareness-engine/RailAwareAwarenessEngine.js');
 const RailAwareConfidenceEngine = require('../../confidence-engine/RailAwareConfidenceEngine.js');
-const RailAwareRecommendationEngine = require('../../recommendation-engine/RailAwareRecommendationEngine.js');
+const RailAwareAssistanceEngine = require('../../assistance-engine/RailAwareAssistanceEngine.js');
 const InMemoryObservationStore = require('../../observation-store/InMemoryObservationStore.js');
 
 describe('RailAwareService — null journey path', () => {
@@ -22,23 +21,9 @@ describe('RailAwareService — null journey path', () => {
       discoverTrain: jest.fn().mockResolvedValue(discoveryResult),
     };
 
-    const liveData = {
-      id: 'TRAIN-1',
-      status: TrainStatus.RUNNING,
-      previousStation: null,
-      nextStation: null,
-      segmentProgress: null,
-      lastUpdatedAt: new Date().toISOString(),
-      isLive: true,
-    };
-
     const mockProvider = {
-      getLiveTrainProgress: jest.fn().mockResolvedValue(liveData),
-    };
-
-    const mockInterpreter = {
-      interpret: jest.fn().mockReturnValue(
-        createObservation({
+      getTrainObservation: jest.fn().mockResolvedValue(
+        createTrainObservation({
           id: 'snap-1',
           train: createTrain({ number: 'TRAIN-1', name: 'Test', startDate: '2026' }),
           status: TrainStatus.RUNNING,
@@ -50,16 +35,19 @@ describe('RailAwareService — null journey path', () => {
     return new RailAwareService({
       discoveryService: mockDiscoveryService,
       provider: mockProvider,
-      interpreter: mockInterpreter,
       store: new InMemoryObservationStore(10),
       confidenceEngine: new RailAwareConfidenceEngine(),
-      riskEngine: new RailAwareRiskEngine(),
-      recommendationEngine: new RailAwareRecommendationEngine(),
-      mapper: new LegacyApiMapper(),
+      awarenessEngine: new RailAwareAwarenessEngine(),
+      assistanceEngine: new RailAwareAssistanceEngine({ emergencyPhoneNumber: '112' }),
+      trajectoryManager: {
+        recordObservation: jest.fn().mockReturnValue({ observation: { latitude: 28.6, longitude: 77.2 }, sessionTrajectory: { observations: [] } }),
+        getRoutingState: jest.fn().mockReturnValue({}),
+        saveRoutingState: jest.fn()
+      }
     });
   }
 
-  it('returns UNKNOWN risk without throwing when trainTarget is set but journey is null', async () => {
+  it('returns UNKNOWN awareness without throwing when trainTarget is set but journey is null', async () => {
     const service = buildService({
       discoveryResult: {
         trainTarget: 'TRAIN-1',
@@ -72,13 +60,11 @@ describe('RailAwareService — null journey path', () => {
     });
 
     // Must not throw
-    const result = await service.evaluateLocation(28.6, 77.2);
+    const result = await service.evaluateLocation('test-session', 28.6, 77.2);
 
     expect(result).toBeDefined();
-    expect(result.risk).toBeDefined();
-    expect(result.risk.level).toBe(RiskLevel.UNKNOWN.toLowerCase());
-    expect(result.risk.reasons).toEqual(
-      expect.arrayContaining([expect.stringContaining('No journey context available')])
-    );
+    expect(result.awareness).toBeDefined();
+    expect(result.awareness.status).toBe('UNKNOWN');
+    expect(result.awareness.explanation).toContain('Unable to estimate because no journey context is available');
   });
 });

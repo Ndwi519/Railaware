@@ -6,19 +6,12 @@ const ConfidenceLevel = Object.freeze({
   HIGH: 'HIGH',
   MEDIUM: 'MEDIUM',
   LOW: 'LOW',
-  UNKNOWN: 'UNKNOWN'
+  UNKNOWN: 'UNKNOWN',
+  UNASSESSED: 'UNASSESSED',
+  NOT_APPLICABLE: 'NOT_APPLICABLE'
 });
 
-/**
- * Risk assessment levels for a user journey.
- * @enum {string}
- */
-const RiskLevel = Object.freeze({
-  SAFE: 'SAFE',
-  ELEVATED: 'ELEVATED',
-  IMMINENT: 'IMMINENT',
-  UNKNOWN: 'UNKNOWN'
-});
+
 
 /**
  * Known train statuses from the provider mapping.
@@ -84,12 +77,13 @@ const ConfidenceRanking = Object.freeze({
   [ConfidenceLevel.UNKNOWN]: 0,
   [ConfidenceLevel.LOW]: 1,
   [ConfidenceLevel.MEDIUM]: 2,
-  [ConfidenceLevel.HIGH]: 3
+  [ConfidenceLevel.HIGH]: 3,
+  [ConfidenceLevel.UNASSESSED]: 0,
+  [ConfidenceLevel.NOT_APPLICABLE]: 0
 });
 
 module.exports = {
   ConfidenceLevel,
-  RiskLevel,
   TrainStatus,
   DiscoveryStatus,
   ResolutionStatus,

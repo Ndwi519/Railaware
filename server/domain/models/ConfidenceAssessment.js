@@ -1,12 +1,12 @@
 /**
  * Tracks the mathematically evaluated trust in the current Observation.
  */
-function createConfidenceAssessment({ level, topologyConfidence, observationConfidence, overallConfidence, reasons = [], assessedAt }) {
+function createConfidenceAssessment({ level, topologyConfidence, observationConfidence, providerReliability, reasons = [], assessedAt }) {
   return Object.freeze({
-    level, // Legacy fallback, same as overallConfidence for now or as caller specifies
+    level, // Legacy fallback
     topologyConfidence,
     observationConfidence,
-    overallConfidence,
+    providerReliability,
     reasons: Object.freeze([...reasons]),
     assessedAt
   });
