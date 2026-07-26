@@ -17,8 +17,8 @@ Returns nearby railway corridors resolved from Overpass/OSM.
 ### \`GET /trains\`
 Returns raw (but parsed) train data from the provider.
 
-### \`GET /risk\`
-Returns the risk evaluation (confidence, explanations, actions).
+### \`GET /awareness\`
+Returns the awareness evaluation (confidence, explanations, actions).
 
 ### \`GET /diagnostics/phase0\`
 Runs or returns the status of Phase 0 validation.

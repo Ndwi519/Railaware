@@ -1,50 +1,81 @@
-# RailAware Architecture
+# RailAware Architecture Guide
 
-RailAware utilizes a strictly delineated client/server architecture, enforcing hard boundaries between infrastructure adapters, external providers, the deterministic state machine, and the user interface.
+## 1. Architecture Summary
 
-## 1. Overall Request Flow
-The core request pipeline originates from the user GPS location (`/api/v1/observation`):
+### Project Purpose
+RailAware is an awareness platform designed to evaluate and communicate real-time railway safety states to users near active rail infrastructure. Its primary directive is to provide highly confident safety indicators without ever collapsing uncertainty into a false sense of safety.
 
-1. **Client** (Next.js/React): Triggers an observation request with GPS coordinates.
-2. **API Layer** (Express): Maps incoming REST requests to the `RailAwareService`.
-3. **TrainDiscoveryService**: Orchestrates the backend discovery logic.
-   - Invokes **CorridorResolver** to query Overpass API.
-   - If a topological corridor is found, invokes **StationResolutionEngine** to extract bounding stations.
-   - If bounding stations exist, queries the **RailRadarProvider** for live trains on that corridor segment.
-4. **RailRadarProviderInterpreter**: Normalizes the proprietary RailRadar data into standardized deterministic domain objects (`Observation`).
-5. **InMemoryObservationStore**: Safely caches the latest state.
-6. **RailAwareConfidenceEngine**: Analyzes the observation to assign a data confidence score based on recency and completeness.
-7. **RailAwareRiskEngine**: Evaluates the observation and its confidence to calculate absolute physical risk to the user.
-8. **RailAwareRecommendationEngine**: Converts the abstract risk score into actionable safety directives.
-9. **LegacyApiMapper**: Serializes the engines' outputs back into the API contract.
+### Architectural Philosophy
+The core philosophy is **objective reality vs. subjective awareness**.
+- The system strictly isolates the acquisition of external provider telemetry (objective reality) from the calculation of user safety (subjective awareness).
+- Uncertainty is treated as a first-class citizen. "We don't know" and "There is no train" are structurally impossible to conflate.
 
-## 2. Component Responsibilities
+### Production Pipeline
+The pipeline is strictly unidirectional (ADR 0001). Data flows in a single direction without cycles:
+1. **Acquisition:** Providers fetch external data.
+2. **Standardisation:** Data is normalized into `TrainObservation`.
+3. **Estimation:** The `TrainEstimator` synthesizes physical observations with known topology to measure absolute along-track distances.
+4. **Evaluation:**
+   - `ConfidenceEngine` quantifies data reliability.
+   - `AwarenessEngine` determines subjective user safety (e.g., `APPROACHING_STATION`).
+5. **Presentation:** The frontend renders solely based on `AwarenessContext.requiresProminentDisplay`.
 
-### Domain Orchestrators
-- **RailAwareService**: The primary facade connecting the HTTP layer to the domain.
-- **TrainDiscoveryService**: The central coordinator that orchestrates discovering topology (`CorridorResolver`), bounding stations (`StationResolutionEngine`), and live trains (`RailRadarProvider`).
-- **InMemoryObservationStore**: A stateful in-memory cache retaining recent `Observation` entities.
+### Dependency Rules & Invariants
+- **Provider Independence (ADR 0002):** No internal engine may depend on provider-specific fields, keys, or anomalies.
+- **Evaluation Isolation (ADR 0007):** The production pipeline must never depend on or be aware of the evaluation framework. Evaluation must never mutate production state.
+- **Estimation Ownership (ADR 0006):** All distance mathematics reside exclusively in `TrainEstimator`.
 
-### Engines (Business Logic / Stateless)
-- **RailAwareConfidenceEngine**: Determines how much trust the system should place in the data.
-- **RailAwareRiskEngine**: An exact implementation of the project's Core Risk Engine. It is NOT an additional abstraction layer; it is the sole arbiter of "Safety by Omission." It maps `Observation` to `RiskLevel`.
-- **RailAwareRecommendationEngine**: Translates `RiskLevel` into human-readable instructions.
-- **StationResolutionEngine**: A pluggable engine that cascades through configured strategies to bind arbitrary topologies to physical station identifiers.
-  - **OsmRouteRelationsStrategy**: Extracts station refs from OSM route relations.
-  - **OsmRelationMembersStrategy**: Extracts station refs from generic OSM relation members.
-  - **RailRadarRouteGeometryStrategy**: Stubbed strategy for provider route geometry.
-  - **OfflineGraphStrategy**: Stubbed strategy for a proprietary dataset.
+### Confidence Model (ADR 0003)
+Confidence is divided into three completely orthogonal pillars:
+- `ProviderReliability`: How trustworthy is the data source?
+- `TopologyConfidence`: How accurately did we map the physical track?
+- `ObservationConfidence`: How recent and complete is the telemetry?
+**Invariant:** These three pillars are never mathematically combined into a "composite score".
 
-### Infrastructure & Providers (Stateful/Adapters)
-- **RailRadarProvider**: The strict sandbox that communicates with the RailRadar API. The rest of the application must never know its endpoints.
-- **RailRadarProviderInterpreter**: The translation layer mapping RailRadar schemas to our strict domain models.
-- **LegacyApiMapper**: The serialization layer standardizing the output for the React frontend.
+---
 
-## 3. Dependency Relationships
-- The **Domain** (Risk Engine, Confidence Engine, Recommendation Engine) has **NO dependencies** on infrastructure, providers, or Express.
-- The **TrainDiscoveryService** relies on abstract interfaces (implemented by `CorridorResolver` and `StationResolutionEngine`).
-- The **RailRadarProvider** is entirely independent of the core domain and merely outputs plain JSON arrays which the `Interpreter` parses.
+## 2. Runtime Data Flow
 
-## 4. Statefulness
-- **Stateful**: `InMemoryObservationStore` (Observation Cache), `OverpassClient` (Cache & In-Flight Coalescing map).
-- **Stateless**: Risk, Confidence, and Recommendation Engines, Mappers, Express routes.
+### Production Data Flow
+
+```mermaid
+flowchart TD
+    A[External Provider API] -->|Raw JSON| B[ProviderInterpreter]
+    B -->|Molds to Domain| C(TrainObservation)
+    C -->|Input| D{TrainEstimator}
+    D -->|Calculates Distances| E(EstimatedTrainState)
+    E -->|Input| F{ConfidenceEngine}
+    E -->|Input| G{AwarenessEngine}
+    F -->|Outputs| H(ConfidenceAssessment)
+    H -->|Input| G
+    G -->|Outputs| I(AwarenessContext)
+    I -->|JSON Response| J[Frontend Presentation]
+```
+
+1. **Provider:** Fetches raw data from the third-party API.
+2. **TrainObservation:** The standard domain object reflecting objective reality.
+3. **TrainEstimator:** Uses corridor topology to project the train's `segmentProgress` into absolute meters.
+4. **EstimatedTrainState:** The output containing pure physical distances (e.g., `distanceMetres: 4500`).
+5. **ConfidenceEngine:** Evaluates the `TrainObservation` to assess data staleness and completeness.
+6. **AwarenessEngine:** Consumes both physical distances and confidence levels to determine semantic safety states (e.g., `AT_STATION`, `UNKNOWN`).
+7. **AwarenessContext:** The final payload containing `requiresProminentDisplay: true/false`.
+8. **Presentation:** The UI blindly respects the context and triggers the overlay.
+
+### Evaluation Framework Flow
+
+The Evaluation Framework exercises exactly the same pipeline but isolates it.
+
+```mermaid
+flowchart TD
+    A[Scenario JSON] --> B[SimulationRunner]
+    B -->|Injects Mock Data| C[MockObservationProvider]
+    C -->|Molds to Domain| D(TrainObservation)
+    D --> E{Production Engines}
+    E --> F(AwarenessContext)
+    F --> G[EvaluationRecorder]
+    A -->|Truth State| G
+    G -->|Tick Ledger| H{MetricsEngine}
+    H -->|Computes ADR 0007| I(Release Report)
+```
+
+Instead of hitting external APIs, the `SimulationRunner` drives time forward deterministically, injecting static scenario payloads into the production engines. The `EvaluationRecorder` logs the system's subjective output (`AwarenessContext`) alongside the scenario's objective `groundTruth`, allowing the `MetricsEngine` to objectively calculate `PositionError` and false negatives.

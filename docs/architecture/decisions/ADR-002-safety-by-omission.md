@@ -15,5 +15,5 @@ This architectural doctrine establishes a "Safety by Omission" rule across the e
 - **Cons:** Significantly increases the frequency of `UNRESOLVED` states during network latency, which may frustrate users expecting binary clear/danger signals.
 
 ## Consequences
-- Confirmed by implementation that the Risk Engine evaluates all network timeouts, parse errors, and missing infrastructure mapping directly to the `UNRESOLVED` Topological Gap state.
+- Confirmed by implementation that the Awareness Engine evaluates all network timeouts, parse errors, and missing infrastructure mapping directly to the `UNRESOLVED` Topological Gap state.
 - UI elements mandate explicit color/text pairs to display "Unknown" distinct from "Safe".

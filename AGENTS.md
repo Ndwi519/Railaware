@@ -67,7 +67,7 @@ Coverage targets (see Code Quality below) say *how much* to test. This says *wha
 1. Business logic
 2. Geospatial calculations
 3. State transitions (the known/unknown state machine especially)
-4. Risk calculations
+4. awareness calculations
 5. Provider adapters
 
 Avoid excessive snapshot testing. Prefer deterministic tests over mocking where practical.
@@ -78,7 +78,7 @@ Avoid excessive snapshot testing. Prefer deterministic tests over mocking where 
 
 - Environment-specific values (API keys, base URLs) belong in environment variables.
 - Operational thresholds (noise thresholds, timeouts, cache TTLs) belong in configuration files.
-- Business rules (e.g. the risk-level escalation logic) belong in code.
+- Business rules (e.g. the awareness-status escalation logic) belong in code.
 
 Never mix the three — a business rule hidden in an environment variable, or an operational threshold hardcoded in business logic, is a Configuration Policy violation even if it technically works.
 
@@ -115,7 +115,7 @@ Every backend service emits structured logs. Every unexpected error includes: ti
 
 ## Error Taxonomy
 
-Use specific error types, not generic exceptions: `ConfigurationError`, `ProviderError`, `ValidationError`, `TopologyError`, `RiskEngineError`, `CacheError`, `NetworkError`. Each should carry enough context to be actionable in logs without needing to reproduce the failure.
+Use specific error types, not generic exceptions: `ConfigurationError`, `ProviderError`, `ValidationError`, `TopologyError`, `AwarenessEngineError`, `CacheError`, `NetworkError`. Each should carry enough context to be actionable in logs without needing to reproduce the failure.
 
 ---
 

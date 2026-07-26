@@ -1,7 +1,7 @@
 # ADR-001: Client/Server Repository Architecture
 
 ## Context
-RailAware requires a frontend client (for displaying maps, risk assessments, and GPS coordinates) and a backend service (for proxying RailRadar requests, caching, and executing deterministic risk algorithms). The repository was originally structured as a Turborepo, but the complexity was unnecessary for a simple two-tier application.
+RailAware requires a frontend client (for displaying maps, awareness assessments, and GPS coordinates) and a backend service (for proxying RailRadar requests, caching, and executing deterministic awareness algorithms). The repository was originally structured as a Turborepo, but the complexity was unnecessary for a simple two-tier application.
 
 ## Decision
 We transitioned the repository to a straightforward Client/Server architecture:

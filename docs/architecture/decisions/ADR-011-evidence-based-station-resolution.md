@@ -3,7 +3,7 @@
 ## Context
 Following the establishment of the Cascading Station Resolution Architecture (ADR-009), we identified a critical architectural ambiguity regarding how station resolution outputs (status, method, confidence, and source) are propagated and consumed by downstream components like the StrategyManager and the Provider adapters. 
 
-Providers possess varying tolerances for the accuracy of bounding stations. Some providers strictly require verified topological codes to return accurate live train data, while others may accept loosely inferred bounding stations. Furthermore, downstream risk engines require explicit confidence indicators to assess the overall safety level. Mixing provider capability checks with confidence scoring violated separation of concerns and risked compromising the non-negotiable rule to "never communicate safety by omission" or fabricate data.
+Providers possess varying tolerances for the accuracy of bounding stations. Some providers strictly require verified topological codes to return accurate live train data, while others may accept loosely inferred bounding stations. Furthermore, downstream awareness engines require explicit confidence indicators to assess the overall safety level. Mixing provider capability checks with confidence scoring violated separation of concerns and could compromise the non-negotiable rule to "never communicate safety by omission" or fabricate data.
 
 To resolve this, we require a strict, normative hierarchy of evidence, a clear separation between provider capability and downstream confidence, and explicit rules governing the provenance of resolution metadata.
 
@@ -15,7 +15,7 @@ We are extending ADR-009 with a formalized, evidence-based station resolution mo
 The following concepts are now explicitly separated across the domain:
 - **ResolutionStatus**: The state of the station resolution attempt itself.
 - **ResolutionMethod**: The highest-strength method used to achieve resolution.
-- **Confidence**: The reliability assessment of the resolution, used downstream for risk.
+- **Confidence**: The reliability assessment of the resolution, used downstream for awareness calculation.
 - **EvidenceSource**: The underlying datasets utilized during the resolution process.
 
 ### 2. Standardized Vocabularies
@@ -72,7 +72,7 @@ These values are configuration parameters calibrated separately from this ADR.
 Additionally, the strategy:
 - Must project candidate stations directly onto the resolved geometric corridor.
 - Must ensure candidates remain constrained to the same corridor.
-- Must **never** perform raw nearest-neighbour matching (which risks snapping to adjacent, disconnected lines).
+- Must **never** perform raw nearest-neighbour matching (which can cause snapping to adjacent, disconnected lines).
 - Must order resolved stations strictly by distance along the corridor.
 - Must return `UNRESOLVED` immediately if any admissibility requirements are not met.
 
@@ -100,7 +100,7 @@ The `StationResolutionEngine` is the **sole owner** of provenance metadata:
 - `confidenceReasons`
 - `evidenceSources`
 
-These fields are **immutable** once a resolution has been produced. Downstream components (StrategyManager, Provider adapters, Risk Engine, UI, LegacyApiMapper, etc.) may consume this metadata, but they must **never** modify or reinterpret it.
+These fields are **immutable** once a resolution has been produced. Downstream components (StrategyManager, Provider adapters, Awareness Engine, UI, RailAwareService, etc.) may consume this metadata, but they must **never** modify or reinterpret it.
 
 ### 7. Provider Capability Contract
 Providers must explicitly declare the minimum strength of evidence they require to function correctly. This is defined by a single, consistent model:
@@ -119,7 +119,7 @@ Because the Evidence Strength Hierarchy is normative and ordered, the `StrategyM
 Provider capability checking and downstream confidence evaluation are fundamentally different stages in the pipeline. 
 
 - **Provider Admissibility** determines whether a provider will accept the resolution and if train discovery may proceed.
-- **Confidence** influences the downstream risk assessment.
+- **Confidence** influences the downstream awareness assessment.
 - **Invariant**: Confidence must **never** be used as the provider admission gate.
 
 **Execution Flow:**
@@ -132,14 +132,14 @@ Provider Capability Check
         ↓
    Confidence
         ↓
-   Risk Engine
+   Awareness Engine
 ```
 
 ### 9. Provider Configuration (Provisional)
 For the current active provider, RailRadar:
-- We do not assume its undocumented API requirements.
-- We default conservatively to `minimumEvidenceStrength: VERIFIED_TOPOLOGY`.
-- This is a **provisional configuration** pending external validation.
+- RailRadar currently defaults to `minimumEvidenceStrength: VERIFIED_TOPOLOGY`.
+- This conservative configuration remains in effect until external validation of RailRadar's station-code handling has been completed.
+- `GEOMETRIC_PROJECTION` is intentionally NOT enabled for RailRadar while that validation remains outstanding.
 - **Action Item**: We must verify RailRadar's actual station-code handling requirements during Phase 0 validation before enabling `GEOMETRIC_PROJECTION` for this provider.
 
 ## Architecture Invariants
@@ -157,10 +157,10 @@ This architecture is governed by the following mandatory invariants:
 
 ## Alternatives Considered
 - **Set-based Provider Capabilities (`Set<ResolutionMethod>`)**: Considered allowing providers to pick and choose discrete methods. Rejected because station resolution methods represent a hierarchy of evidence strength. There is no logical scenario where a provider accepts `GEOMETRIC_PROJECTION` but rejects `VERIFIED_TOPOLOGY`. A threshold approach (`minimumEvidenceStrength`) is cleaner and more accurate to the domain.
-- **Merging Confidence and Admissibility**: Considered letting the Risk Engine decide if a provider should run based on confidence levels. Rejected because it violates separation of concerns; providers know their own API contracts, while the Risk Engine assesses user safety.
+- **Merging Confidence and Admissibility**: Considered letting the Awareness Engine decide if a provider should run based on confidence levels. Rejected because it violates separation of concerns; providers know their own API contracts, while the Awareness Engine assesses user safety.
 
 ## Consequences
-- **Positive**: Strict immutability and provenance ownership prevent subtle data tampering bugs in downstream mappers or risk engines.
+- **Positive**: Strict immutability and provenance ownership prevent subtle data tampering bugs in downstream mappers or awareness engines.
 - **Positive**: The Provider Capability contract prevents us from over-promising data to providers that require high-fidelity topological inputs.
 - **Positive**: Historical replay becomes deterministic. Because provenance is immutable, historical observations can always be replayed using exactly the evidence available at the time.
 - **Negative**: The system will more frequently fall back to `PREREQUISITE_UNAVAILABLE` when connected to strict providers in poorly mapped regions, leading to a degraded (but safe) UI experience.
@@ -187,15 +187,15 @@ This architecture is governed by the following mandatory invariants:
 - **Initial Document**: Formalized domains, established hierarchy, defined provenance ownership, and introduced the provider capability threshold.
 
 ## Required Implementation Changes
-- [ ] Add ResolutionMethod enum
-- [ ] Add EvidenceSource enum
-- [ ] Add confidenceReasons
-- [ ] Add evidenceSources
-- [ ] Add GeometricProjectionStrategy
-- [ ] Update StationResolutionEngine
-- [ ] Update StrategyManager admission logic
-- [ ] Rename DiscoveryStatus.UNSUPPORTED → PREREQUISITE_UNAVAILABLE
-- [ ] Update RiskEngine
-- [ ] Update LegacyApiMapper
-- [ ] Add tests covering every evidence level
+- [x] Add ResolutionMethod enum
+- [x] Add EvidenceSource enum
+- [x] Add confidenceReasons
+- [x] Add evidenceSources
+- [x] Add GeometricProjectionStrategy
+- [x] Update StationResolutionEngine
+- [x] Update StrategyManager admission logic
+- [x] Rename DiscoveryStatus.UNSUPPORTED → PREREQUISITE_UNAVAILABLE
+- [x] Update AwarenessEngine
+- [x] Update RailAwareService
+- [x] Add tests covering every evidence level
 - [ ] Verify RailRadar capability before enabling geometric projection

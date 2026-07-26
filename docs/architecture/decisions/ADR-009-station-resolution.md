@@ -23,7 +23,7 @@ In the current implementation, the `StationResolutionEngine` acts as a pluggable
 ## Architectural Specifications
 - **No Heuristics:** Strategies must not infer or guess station codes based on proximity or name fuzzy matching. A verified code source (`ref`, `ref:IR`, or `provider`) is required.
 - **Explicit Trails:** Instead of a generic failure boolean, every attempt yields a `ResolutionAttempt` detailing the execution duration and reason for failure, preserving a precise diagnostic audit log.
-- **Provider-Agnostic Risk Engine:** The Risk Engine only consumes the final `StationReference` output. It is isolated from how the station was derived.
+- **Provider-Agnostic Awareness Engine:** The Awareness Engine only consumes the final `StationReference` output. It is isolated from how the station was derived.
 
 ## Consequences
 - **Implemented & Future Extension:** The current implementation iterates through configured `ResolutionStrategy` modules. The architecture enables future extensions, allowing proprietary databases to plug in as a new `ResolutionStrategy` without rewriting downstream logic.

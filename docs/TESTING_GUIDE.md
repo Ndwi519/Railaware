@@ -5,7 +5,7 @@ Coverage targets (90%+) say *how much* to test. This says *what matters most*:
 1. Business logic
 2. Geospatial calculations
 3. State transitions (the known/unknown state machine especially)
-4. Risk calculations
+4. awareness calculations
 5. Provider adapters
 
 ## Running Tests

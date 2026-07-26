@@ -29,7 +29,7 @@ Instead of relying on absolute GPS coordinates for trains, the architecture esta
 
 ### Implemented Architecture
 - The Corridor Resolver handles an `UNRESOLVED` state when it cannot match geographic geometry to topological station codes.
-- The Observation Engine and Risk Engine consume topological fields (`trainSegmentFraction`, `approaching`, `distanceAlongTrack`) instead of geographic `lat`/`lng`.
+- The Observation Engine and Awareness Engine consume topological fields (`trainSegmentFraction`, `approaching`, `distanceAlongTrack`) instead of geographic `lat`/`lng`.
 - The UI communicates "Estimated" positions to avoid implying GPS precision.
 
 ### Future Migration Work

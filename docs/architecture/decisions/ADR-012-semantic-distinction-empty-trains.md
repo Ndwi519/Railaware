@@ -21,8 +21,8 @@ When a request is made with `resolutionStatus = "UNRESOLVED"`:
 5. Back in `TrainDiscoveryService.js`, the service assembles the final result object:
    - `discoveredTrains` is assigned via: `executionState.finalResult?.discoveredTrains || []`.
    - **Source of `[]`**: Because `finalResult` is `null`, it falls back to the default empty array `[]`.
-6. Back in `RailAwareService.js`, since `trainTarget` is `null` (no train found), it creates a fallback observation and calls `LegacyApiMapper.js` to structure the JSON response.
-7. `LegacyApiMapper.js` assigns `trains: discoveryContext.discoveredTrains` (which is `[]`) and `observation.nearbyTrains: discoveryContext.discoveredTrains` (which is `[]`).
+6. Back in `RailAwareService.js`, since `trainTarget` is `null` (no train found), it creates a fallback observation and calls `RailAwareService.js` to structure the JSON response.
+7. `RailAwareService.js` assigns `trains: discoveryContext.discoveredTrains` (which is `[]`) and `observation.nearbyTrains: discoveryContext.discoveredTrains` (which is `[]`).
 
 ---
 
@@ -50,5 +50,5 @@ The API contract must explicitly distinguish between:
 ---
 
 ## Consequences
-1. The backend mapper (`LegacyApiMapper.js`) and `TrainDiscoveryService.js` must be updated to return `discoveredTrains: null` when discovery was not attempted (executed strategies length is 0) or failed (provider errors are present).
+1. The backend mapper (`RailAwareService.js`) and `TrainDiscoveryService.js` must be updated to return `discoveredTrains: null` when discovery was not attempted (executed strategies length is 0) or failed (provider errors are present).
 2. The frontend code (e.g., `AwarenessSidebar.jsx` and `LiveMap.jsx`) must be updated to handle a `null` value for `trains` gracefully without throwing TypeErrors (utilizing optional chaining `trains?.length`), and displaying "Currently Unavailable" or "Train discovery not performed" appropriately.

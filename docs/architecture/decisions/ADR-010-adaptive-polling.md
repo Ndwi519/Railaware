@@ -19,8 +19,8 @@ These values are PROPOSED engineering defaults. They REQUIRE VALIDATION against:
 
 - **Unknown topology / Not on corridor**: No polling (rely on GPS updates). 
 - **Corridor resolved, no trains nearby**: 30 seconds. 
-- **Train detected nearby (Elevated Risk)**: 10 seconds. 
-- **High-risk / Critical Emergency state**: 5 seconds.
+- **Awareness indicates an approaching or at-station train**: 10 seconds.
+- **Awareness indicates a critical emergency or imminent proximity**: 5 seconds.
 
 ## Interactions with Current Architecture
 If implemented, adaptive polling would interact with our existing systems as follows:

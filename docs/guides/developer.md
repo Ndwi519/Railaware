@@ -19,7 +19,7 @@ Since RailAware requires you to be physically near a railway track to trigger th
 5. The map will instantly "snap" your location, and the right-hand panel will display the real-time API response from the local backend, including:
    - Corridor Resolver geometry and station resolution attempts.
    - Provider API freshness.
-   - The final output of the Risk Engine.
+   - The final output of the Awareness Engine.
 
 ## Testing Rules
 - Every mathematical/topological change requires unit tests.

@@ -19,4 +19,4 @@ We implemented a strict, multi-tiered resilience pipeline in the `OverpassClient
 - **Cons:** The cache is currently strictly in-memory per Node instance. In a multi-node deployment, identical requests hitting different load-balanced pods will bypass the coalescing layer.
 
 ## Consequences
-- The system gracefully handles Overpass congestion, converting it safely to `UNRESOLVED` Risk states without hanging Node event loops.
+- The system gracefully handles Overpass congestion, converting it safely to `UNRESOLVED` awareness states without hanging Node event loops.
