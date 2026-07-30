@@ -1,5 +1,5 @@
 /**
- * @module client/services/ObservationService
+ * @module client/services/AwarenessService
  * @responsibility Backend communication for the observation pipeline.
  *
  * Owns:
@@ -14,7 +14,7 @@
  *  - Retry logic
  *
  * Public API:
- *  - fetchObservation(lat, lng, signal): Promise<Object>
+ *  - fetchAwareness(lat, lng, signal): Promise<Object>
  */
 
 export class NetworkError extends Error {
@@ -25,7 +25,7 @@ export class NetworkError extends Error {
   }
 }
 
-export class ObservationService {
+export class AwarenessService {
   /**
    * @param {Function} [fetchImpl] - Injected fetch implementation (defaults to global fetch).
    * @param {string}   [baseUrl]   - API base URL (defaults to VITE_API_URL or localhost).
@@ -48,13 +48,10 @@ export class ObservationService {
    * @throws {NetworkError} on HTTP errors
    * @throws {DOMException}  on abort (name === 'AbortError')
    */
-  async fetchObservation(lat, lng, signal) {
+  async fetchAwareness(lat, lng, signal) {
     const headers = { 'Content-Type': 'application/json' };
-    if (this._sessionId) {
-      headers['x-session-id'] = this._sessionId;
-    }
 
-    const response = await this._fetch(`${this._baseUrl}/api/v1/observation`, {
+    const response = await this._fetch(`${this._baseUrl}/api/v1/awareness`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ lat, lng }),
@@ -65,11 +62,31 @@ export class ObservationService {
       throw new NetworkError(`API returned ${response.status}`, { status: response.status });
     }
 
-    const returnedSessionId = response.headers.get('x-session-id');
-    if (returnedSessionId && !this._sessionId) {
-      this._sessionId = returnedSessionId;
-    }
+    const data = await response.json();
 
-    return response.json();
+    // Mapping layer: Translate Phase 1 Awareness schema to Legacy UI expected schema
+    const legacyResponse = {
+      awareness: {
+        status: data.nearbyTracks?.length > 0 ? 'TRACKS_NEARBY' : 'NO_TRACKS_NEARBY',
+        distanceMetres: data.nearbyTracks?.length > 0 ? Math.round(data.nearbyTracks[0].crossTrackDistanceMetres) : null,
+        requiresProminentDisplay: false // Phase 1 does not know train locations, cannot assert danger
+      },
+      discoveryContext: {
+        corridor: data.nearbyTracks?.length > 0 ? { resolutionStatus: 'RESOLVED' } : null,
+        providerError: false,
+        discoveredTrains: null // explicitly null to indicate no train data
+      },
+      assistance: {
+        guidance: {
+          title: "Phase 1: Static Awareness Only",
+          instructions: [data.disclaimer || "RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation."]
+        },
+        availableActions: [],
+        emergencyContact: null
+      },
+      raw: data
+    };
+
+    return legacyResponse;
   }
 }

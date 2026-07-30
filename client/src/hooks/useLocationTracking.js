@@ -13,6 +13,24 @@
  */
 import { useState, useEffect, useRef } from 'react';
 
+function calculateDistance(pos1, pos2) {
+  if (!pos1 || !pos2) return Infinity;
+  const [lat1, lon1] = pos1;
+  const [lat2, lon2] = pos2;
+  const R = 6371e3; // Earth radius in metres
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const dPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const dLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
 export function useLocationTracking(isSimulating, simulatedPosition) {
   const [rawPosition, setRawPosition] = useState(null);
   const [permissionStatus, setPermissionStatus] = useState('prompting');
@@ -25,7 +43,11 @@ export function useLocationTracking(isSimulating, simulatedPosition) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
-      setRawPosition(simulatedPosition);
+      setRawPosition((prevPos) => {
+        const newPos = simulatedPosition;
+        if (prevPos && calculateDistance(prevPos, newPos) < 0.5) return prevPos;
+        return newPos;
+      });
       setPermissionStatus('granted');
       return;
     }
@@ -39,7 +61,11 @@ export function useLocationTracking(isSimulating, simulatedPosition) {
       (pos) => {
         if (!isSimulating) {
           console.log("[GPS]", pos.coords.latitude, pos.coords.longitude);
-          setRawPosition([pos.coords.latitude, pos.coords.longitude]);
+          setRawPosition((prevPos) => {
+            const newPos = [pos.coords.latitude, pos.coords.longitude];
+            if (prevPos && calculateDistance(prevPos, newPos) < 0.5) return prevPos;
+            return newPos;
+          });
         }
         setPermissionStatus('granted');
       },

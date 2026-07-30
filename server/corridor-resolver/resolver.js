@@ -22,6 +22,94 @@ class CorridorResolver {
   }
 
   /**
+   * Orchestrates the resolution of all railway clusters within a radius.
+   *
+   * @param {Object} location - GPS location {lat, lng}
+   * @param {number} radiusMetres - Search radius
+   * @returns {Object} { assembledCorridors, nearestStation }
+   */
+  async resolveAllClusters(location, radiusMetres) {
+    const { corridors, stations, elements } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
+    
+    let nearestStation = null;
+    let minStationDist = Infinity;
+    if (stations && stations.length > 0) {
+      const { haversineMetres } = require('../calculations/haversine.js');
+      for (const station of stations) {
+        if (station.lat && station.lon) {
+          const dist = haversineMetres(location.lat, location.lng, station.lat, station.lon);
+          if (dist < minStationDist) {
+            minStationDist = dist;
+            nearestStation = { ...station, distanceMetres: Math.round(dist) };
+          }
+        }
+      }
+    }
+
+    if (!elements || elements.length === 0) {
+      return { assembledCorridors: [], nearestStation };
+    }
+
+    const { nodeCoords, ways } = _corridorGraph.indexOverpassElements(elements);
+    
+    // Proximity Pre-Filter: Filter ways BEFORE clustering
+    const { projectPointOntoCorridor } = require('../calculations/projection.js');
+    const filteredWays = new Map();
+    
+    for (const [wayId, way] of ways.entries()) {
+      if (way && way.nodeIds.length >= 2) {
+        const points = way.nodeIds.map(id => nodeCoords.get(id)).filter(Boolean);
+        if (points.length >= 2) {
+          const projection = projectPointOntoCorridor(location, points);
+          if (projection && projection.crossTrackDistanceMetres <= radiusMetres) {
+            filteredWays.set(wayId, way);
+          }
+        }
+      }
+    }
+
+    const graph = _corridorGraph.buildWayConnectivityGraph(filteredWays);
+    
+    const clusters = [];
+    const visitedWayIds = new Set();
+    
+    for (const wayId of filteredWays.keys()) {
+      if (!visitedWayIds.has(wayId)) {
+        const connectedComponent = _corridorGraph.findConnectedWays(wayId, graph);
+        // Only include wayIds that are actually in filteredWays
+        const validWayIds = connectedComponent.wayIds.filter(id => filteredWays.has(id));
+        if (validWayIds.length > 0) {
+          for (const id of validWayIds) {
+            visitedWayIds.add(id);
+          }
+          // Patch the connected component to only have the valid ways
+          clusters.push({
+             wayIds: validWayIds,
+             depthByWayId: connectedComponent.depthByWayId,
+             maxDepthReached: connectedComponent.maxDepthReached,
+             truncated: connectedComponent.truncated
+          });
+        }
+      }
+    }
+
+    const assembledCorridors = [];
+
+    for (const cluster of clusters) {
+      try {
+        const assembledCorridor = _corridorAssembly.assemble(cluster, graph, filteredWays, nodeCoords);
+        if (assembledCorridor) {
+          assembledCorridors.push(assembledCorridor);
+        }
+      } catch (e) {
+        log.warn('Failed to assemble cluster', { error: e.message, wayIds: cluster.wayIds });
+      }
+    }
+
+    return { assembledCorridors, nearestStation };
+  }
+
+  /**
    * Orchestrates the resolution of the nearest railway corridor to the given location.
    * Strictly adheres to the Version 1.1 Architecture Amendment boundaries.
    *

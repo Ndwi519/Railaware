@@ -3,17 +3,16 @@ import LiveMap from '../components/LiveMap';
 import DeveloperDiagnosticsPanel from '../components/DeveloperDiagnosticsPanel';
 import EmergencyMode from '../components/EmergencyMode';
 import AwarenessSidebar from '../components/AwarenessSidebar';
-import { useSmoothedLocation } from '../hooks/useSmoothedLocation';
+import { useMarkerAnimation } from '../hooks/useMarkerAnimation';
 import { useLocationTracking } from '../hooks/useLocationTracking';
 import { useSimulation } from '../hooks/useSimulation';
-import { useObservation } from '../hooks/useObservation';
+import { useAwareness } from '../hooks/useAwareness';
 import { Loader2, MapPinOff } from 'lucide-react';
 
 const LOADING_STEPS = [
   'Finding your location...',
   'Locating nearby railway lines...',
-  'Checking live train data...',
-  'Live updates active',
+  'Awareness ready',
 ];
 
 export default function LiveMapPage() {
@@ -26,14 +25,16 @@ export default function LiveMapPage() {
     simulatedPosition
   );
 
-  const position = useSmoothedLocation(rawPosition, 0.3);
-  const lat = position ? position[0] : null;
-  const lng = position ? position[1] : null;
+  const position = useMarkerAnimation(rawPosition);
 
-  console.log("[Before Backend]", lat, lng);
+  // Safety-critical backend requests must use rawPosition, never smoothed animation state.
+  const rawLat = rawPosition ? rawPosition[0] : null;
+  const rawLng = rawPosition ? rawPosition[1] : null;
+
+  console.log("[Before Backend]", rawLat, rawLng);
 
   const { observationData, observationStatus, requestObservationRefresh } =
-    useObservation(lat, lng);
+    useAwareness(rawLat, rawLng);
 
   // Loading overlay sequencing
   const [loadingStep, setLoadingStep] = useState(0);
@@ -63,7 +64,7 @@ export default function LiveMapPage() {
     console.log("[Manual Input / Panel Apply]", coords[0], coords[1]);
     setSimulatedPosition(coords);
     if (!isSimulating) setIsSimulating(true);
-    if (lat === coords[0] && lng === coords[1]) {
+    if (rawLat === coords[0] && rawLng === coords[1]) {
       requestObservationRefresh();
     }
   };
@@ -141,7 +142,7 @@ export default function LiveMapPage() {
           <MapPinOff className="w-16 h-16 text-red-600 mb-6" />
           <h2 className="text-3xl font-bold text-slate-900 mb-4">Location Access Required</h2>
           <p className="text-slate-600 text-lg max-w-md mb-8">
-            RailAware requires your location to detect nearby railway corridors and approaching trains.
+            RailAware requires your location to detect nearby railway corridors.
             We do not save your location history.
           </p>
           <button

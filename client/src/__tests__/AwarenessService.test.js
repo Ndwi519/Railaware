@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ObservationService, NetworkError } from '../services/ObservationService';
+import { AwarenessService, NetworkError } from '../services/AwarenessService';
 
-describe('ObservationService', () => {
+describe('AwarenessService', () => {
   let mockFetch;
   let service;
 
   beforeEach(() => {
     mockFetch = vi.fn();
-    service = new ObservationService(mockFetch, 'http://test-api');
+    service = new AwarenessService(mockFetch, 'http://test-api');
   });
 
   it('fetches observation successfully', async () => {
@@ -19,10 +19,10 @@ describe('ObservationService', () => {
     });
 
     const signal = new AbortController().signal;
-    const result = await service.fetchObservation(10, 20, signal);
+    const result = await service.fetchAwareness(10, 20, signal);
 
     expect(result).toEqual(mockData);
-    expect(mockFetch).toHaveBeenCalledWith('http://test-api/api/v1/observation', {
+    expect(mockFetch).toHaveBeenCalledWith('http://test-api/api/v1/awareness', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lat: 10, lng: 20 }),
@@ -36,8 +36,8 @@ describe('ObservationService', () => {
       status: 500
     });
 
-    await expect(service.fetchObservation(10, 20)).rejects.toThrow(NetworkError);
-    await expect(service.fetchObservation(10, 20)).rejects.toMatchObject({
+    await expect(service.fetchAwareness(10, 20)).rejects.toThrow(NetworkError);
+    await expect(service.fetchAwareness(10, 20)).rejects.toMatchObject({
       status: 500,
       name: 'NetworkError'
     });

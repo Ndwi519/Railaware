@@ -8,6 +8,9 @@ const { createLogger } = require('./utils/logger.js');
 const { createRailAwareService } = require('./application/bootstrap/createRailAwareService.js');
 const path = require('path');
 const dotenv = require('dotenv');
+const { createSpatialAwarenessService } = require('./application/services/createSpatialAwarenessService.js');
+const { OverpassClient } = require('./corridor-resolver/overpass.js');
+const { DEFAULT_THRESHOLDS } = require('./config/thresholds.js');
 
 // Resolve the root .env file located one directory up
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -80,6 +83,10 @@ async function startServer() {
 
     // Instantiate the singleton application service
     const railAwareService = createRailAwareService(config);
+    const spatialAwarenessService = createSpatialAwarenessService({
+      overpassClient: config.overpassClient || new OverpassClient(config.overpass),
+      thresholds: { DEFAULT_THRESHOLDS }
+    });
     const ApplicationMapper = require('./application/mappers/ApplicationMapper.js');
 
     /**
@@ -114,7 +121,20 @@ async function startServer() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+    app.post('/api/v1/awareness', observationLimiter, async (req, res) => {
+      const { lat, lng } = req.body;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({ error: 'Invalid location parameters' });
+      }
 
+      try {
+        const result = await spatialAwarenessService.getNearbyAwareness({ lat, lng });
+        res.json(result);
+      } catch (error) {
+        log.error('Awareness pipeline failed', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
     // ==========================================
     // PHASE 4 EVALUATION FRAMEWORK ROUTES
     // ==========================================
@@ -161,7 +181,7 @@ async function startServer() {
         const text = await response.text();
         try {
           body = JSON.parse(text);
-        } catch(e) {
+        } catch (e) {
           body = text; // fallback to text if not json
         }
 
