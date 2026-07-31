@@ -29,7 +29,7 @@ class OverpassClient {
   /**
    * Fetches railway infrastructure near the provided GPS location.
    */
-  async fetchNearbyRailways(location, radiusMetres) {
+  async fetchNearbyRailways(location, radiusMetres) { 
     // Step 3 - Corridor Cache
     // Normalize coordinates using approximately 0.005° snapping.
     // This represents an approximately 500 m grid at Indian latitudes and varies slightly with latitude because longitude degrees shrink with cos(latitude).

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Info, Menu, X } from 'lucide-react';
 import { formatStatus, formatDistance } from '../utils/awarenessFormatters';
+import ScheduledServices from './ScheduledServices';
 
 export default function AwarenessSidebar({ observationData, isTrainNearby }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,6 +64,8 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
                 </p>
               </div>
             </div>
+
+            <ScheduledServices corridorId={observationData.discoveryContext?.corridor?.id || observationData.nearbyTracks?.[0]?.id} />
 
             {/* Provider Status Details */}
             <div className="text-sm text-slate-600 space-y-3">

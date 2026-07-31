@@ -32,7 +32,6 @@ class CorridorResolver {
     const tFetchStart = performance.now();
     const { corridors, stations, elements } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
     const tFetchEnd = performance.now();
-    console.log(`[PERF] Overpass fetch: ${tFetchEnd - tFetchStart} ms`);
     
     let nearestStation = null;
     let minStationDist = Infinity;
@@ -95,7 +94,6 @@ class CorridorResolver {
       }
     }
     const tPreFilterEnd = performance.now();
-    console.log(`[PERF] Pre-filter: ${tPreFilterEnd - tPreFilterStart} ms`);
 
     const tGraphStart = performance.now();
     const graph = _corridorGraph.buildWayConnectivityGraph(filteredWays);
@@ -123,7 +121,6 @@ class CorridorResolver {
       }
     }
     const tGraphEnd = performance.now();
-    console.log(`[PERF] Graph/Cluster: ${tGraphEnd - tGraphStart} ms`);
 
     const tAssemblyStart = performance.now();
     const assembledCorridors = [];
@@ -139,9 +136,8 @@ class CorridorResolver {
       }
     }
     const tAssemblyEnd = performance.now();
-    console.log(`[PERF] Assembly: ${tAssemblyEnd - tAssemblyStart} ms`);
 
-    return { assembledCorridors, nearestStation, nearestCrossing };
+    return { assembledCorridors, nearestStation, nearestCrossing, stations };
   }
 
   /**

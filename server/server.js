@@ -11,6 +11,8 @@ const dotenv = require('dotenv');
 const { createSpatialAwarenessService } = require('./application/services/createSpatialAwarenessService.js');
 const { OverpassClient } = require('./corridor-resolver/overpass.js');
 const { DEFAULT_THRESHOLDS } = require('./config/thresholds.js');
+const scheduleCache = require('./application/services/ScheduleCorridorCache.js');
+const { RailRadarProvider } = require('./provider/railradar.js');
 
 // Resolve the root .env file located one directory up
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -135,6 +137,97 @@ async function startServer() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+
+    const scheduleLimiter = rateLimit({
+      windowMs: 1 * 60 * 1000,
+      max: 20,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+
+    const scheduleProvider = new RailRadarProvider(config);
+
+    const scheduleResponseCache = new Map();
+    const SCHEDULE_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+    const MAX_SCHEDULE_CACHE_SIZE = 500;
+
+    function _evictScheduleCacheIfFull() {
+      if (scheduleResponseCache.size >= MAX_SCHEDULE_CACHE_SIZE) {
+        const oldestKey = scheduleResponseCache.keys().next().value;
+        scheduleResponseCache.delete(oldestKey);
+        log.info('SCHEDULE CACHE EVICTION - oldest entry removed', { oldestKey, cacheSizeAfterEviction: scheduleResponseCache.size });
+      }
+    }
+
+    app.get('/api/v1/schedule/corridor/:corridorId', scheduleLimiter, async (req, res) => {
+      const { corridorId } = req.params;
+      
+      const now = Date.now();
+      const cachedResponse = scheduleResponseCache.get(corridorId);
+      if (cachedResponse && (now - cachedResponse.timestamp) < SCHEDULE_CACHE_TTL_MS) {
+         const response = { ...cachedResponse.data };
+         if (config.nodeEnv !== 'production') {
+            response.cacheInfo = { 
+               hit: true, 
+               ttlRemainingSeconds: Math.round((SCHEDULE_CACHE_TTL_MS - (now - cachedResponse.timestamp)) / 1000)
+            };
+         }
+         return res.json(response);
+      }
+      
+      const stations = scheduleCache.get(corridorId);
+      if (!stations) {
+        return res.json({ 
+          scheduledServices: [], 
+          status: "no_scheduled_services", 
+          reason: "corridor_not_found_or_unbounded" 
+        });
+      }
+
+      try {
+        const trains = await scheduleProvider.discoverNearbyTrains(stations.from, stations.to);
+        
+        const scheduledServices = trains.map(t => ({
+          trainNumber: t.id,
+          trainName: t.name || 'UNKNOWN',
+          scheduledDeparture: {
+            station: stations.from,
+            time: t.departure || 'UNKNOWN'
+          },
+          scheduledArrival: {
+            station: stations.to,
+            time: t.arrival || 'UNKNOWN'
+          },
+          source: {
+            type: "published_timetable",
+            live: false
+          }
+        }));
+
+        const response = {
+          corridorId,
+          retrievedAt: new Date().toISOString(),
+          scheduledServices,
+          status: scheduledServices.length > 0 ? "success" : "no_scheduled_services"
+        };
+        
+        _evictScheduleCacheIfFull();
+        scheduleResponseCache.set(corridorId, { timestamp: Date.now(), data: response });
+
+        if (config.nodeEnv !== 'production') {
+          response.cacheInfo = { hit: false, ttlRemainingSeconds: SCHEDULE_CACHE_TTL_MS / 1000 };
+        }
+
+        res.json(response);
+      } catch (error) {
+        log.error('Schedule pipeline failed', error);
+        res.json({ 
+          scheduledServices: [], 
+          status: "unavailable", 
+          reason: "provider_error" 
+        });
+      }
+    });
     // ==========================================
     // PHASE 4 EVALUATION FRAMEWORK ROUTES
     // ==========================================
@@ -251,3 +344,5 @@ async function startServer() {
 }
 
 startServer();
+
+// trigger nodemon restart
