@@ -69,8 +69,12 @@ export function useLocationTracking(isSimulating, simulatedPosition) {
         }
         setPermissionStatus('granted');
       },
-      (_err) => {
-        setPermissionStatus((prev) => prev === 'prompting' ? 'denied' : prev);
+      (err) => {
+        if (err.code === 1) { // 1 === PERMISSION_DENIED
+          setPermissionStatus('denied');
+        }
+        // codes 2 (POSITION_UNAVAILABLE) and 3 (TIMEOUT) are transient;
+        // leave permissionStatus and rawPosition as-is and let watchPosition retry.
       },
       { enableHighAccuracy: true, maximumAge: 0 }
     );

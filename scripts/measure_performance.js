@@ -1,5 +1,14 @@
-const { OverpassClient } = require('./corridor-resolver/overpass.js');
-const { CorridorResolver } = require('./corridor-resolver/resolver.js');
+/**
+ * Performance Measurement Script
+ * 
+ * Purpose: Measures the execution time of the CorridorResolver's `resolveAllClusters`
+ * algorithm against real Overpass data, verifying both cold-start (network fetch)
+ * and cached-repeat (in-memory) latency.
+ * 
+ * Usage: node scripts/measure_performance.js
+ */
+const { OverpassClient } = require('../server/corridor-resolver/overpass.js');
+const { CorridorResolver } = require('../server/corridor-resolver/resolver.js');
 
 async function measure() {
   const config = {

@@ -75,6 +75,7 @@ export default function DeveloperDiagnosticsPanel({
         onClick={() => setIsOpen(true)}
         className="absolute top-4 right-4 z-50 bg-slate-900/90 text-white p-2.5 rounded-xl shadow-lg hover:bg-slate-800 backdrop-blur transition-all"
         title="Developer Diagnostics"
+        aria-label="Developer Diagnostics"
       >
         <Settings className="w-5 h-5" />
       </button>
@@ -86,7 +87,7 @@ export default function DeveloperDiagnosticsPanel({
               <Activity className="w-4 h-4 text-emerald-400" />
               Diagnostics Panel
             </h2>
-            <button onClick={() => setIsOpen(false)} className="hover:text-white p-1">
+            <button onClick={() => setIsOpen(false)} className="hover:text-white p-1" aria-label="Close Diagnostics Panel">
               <X className="w-5 h-5" />
             </button>
           </div>

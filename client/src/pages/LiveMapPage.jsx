@@ -97,9 +97,9 @@ export default function LiveMapPage() {
         </div>
 
         {/* Lightweight Loading Overlay */}
-        {permissionStatus !== 'denied' && loadingStep >= 0 && !isTrainNearby && (
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md pointer-events-none">
-            <div className="bg-white/90 backdrop-blur-lg border border-slate-200 rounded-2xl p-4 shadow-2xl flex items-center space-x-4 transition-all duration-500 pointer-events-auto">
+        {permissionStatus !== 'denied' && loadingStep >= 0 && observationStatus !== 'error' && !isTrainNearby && (
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-sm pointer-events-none">
+            <div className="bg-white/95 backdrop-blur-lg border border-slate-200 rounded-2xl p-4 shadow-2xl flex items-center space-x-4 transition-all duration-500 pointer-events-auto">
               {loadingStep < LOADING_STEPS.length - 1 ? (
                 <Loader2 className="w-6 h-6 text-emerald-600 animate-spin flex-shrink-0" />
               ) : (
@@ -110,9 +110,27 @@ export default function LiveMapPage() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-slate-800 font-bold text-sm">RailAware</h3>
                 <p className="text-slate-600 text-sm truncate animate-pulse">
-                  {LOADING_STEPS[loadingStep]}
+                  {loadingStep === 1 ? 'Locating nearby railway lines... (this can take a few seconds depending on network)' : LOADING_STEPS[loadingStep]}
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Network Error Overlay */}
+        {observationStatus === 'error' && !isTrainNearby && (
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-sm">
+            <div className="bg-white/95 backdrop-blur-lg border-l-4 border-l-orange-500 border-y border-r border-slate-200 rounded-xl p-4 shadow-2xl flex flex-col items-center space-y-3 text-center">
+              <div>
+                <h3 className="text-slate-800 font-bold text-sm">Network Unreachable</h3>
+                <p className="text-slate-600 text-sm mt-1">Unable to fetch live awareness data. Please check your connection.</p>
+              </div>
+              <button
+                onClick={() => requestObservationRefresh()}
+                className="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold rounded-lg text-sm transition-colors w-full"
+              >
+                Retry Connection
+              </button>
             </div>
           </div>
         )}
