@@ -22,13 +22,13 @@ class SpatialAwarenessService {
      * @returns {Object} Phase 1 Spatial Awareness Result
      */
     async getNearbyAwareness(location) {
-        const { assembledCorridors, nearestStation } = await this.resolver.resolveAllClusters(location, this.radiusMetres);
+        const { assembledCorridors, nearestStation, nearestCrossing } = await this.resolver.resolveAllClusters(location, this.radiusMetres);
 
         if (assembledCorridors.length === 0) {
             return {
                 nearbyTracks: [],
-                nearestCrossing: null,
-                nearestStation: null,
+                nearestCrossing,
+                nearestStation,
                 disclaimer: "No railway infrastructure detected within range. Ensure you are near a track."
             };
         }
@@ -52,19 +52,28 @@ class SpatialAwarenessService {
             }
         }
 
-        const nearbyTracks = Array.from(branchMap.entries()).map(([branchId, candidate]) => ({
-            id: branchId,
-            crossTrackDistanceMetres: candidate.result.crossTrackDistanceMetres,
-            side: "unknown" // Phase 2: Directional inference
-        })).sort((a, b) => a.crossTrackDistanceMetres - b.crossTrackDistanceMetres);
+        const nearbyTracks = Array.from(branchMap.entries()).map(([branchId, candidate]) => {
+            const geometry = candidate.branch ? candidate.branch.map(seg => ({
+                lat: seg.p1.lat,
+                lng: seg.p1.lng
+            })) : [];
+            // Add the last point of the last segment to complete the polyline
+            if (candidate.branch && candidate.branch.length > 0) {
+                const lastSeg = candidate.branch[candidate.branch.length - 1];
+                geometry.push({ lat: lastSeg.p2.lat, lng: lastSeg.p2.lng });
+            }
+
+            return {
+                id: branchId,
+                crossTrackDistanceMetres: candidate.result.crossTrackDistanceMetres,
+                side: "unknown", // Phase 2: Directional inference
+                geometry
+            };
+        }).sort((a, b) => a.crossTrackDistanceMetres - b.crossTrackDistanceMetres);
 
         return {
             nearbyTracks,
-            // PHASE 2 DECISION: Nearest crossing calculation is explicitly deferred.
-            // Reasoning: Correct crossing resolution requires parsing node tags (highway=crossing) 
-            // and intersecting them with the assembled corridor topology. This complexity introduces
-            // risk to the Phase 1 static awareness stability and will be delivered in Phase 2.
-            nearestCrossing: null, 
+            nearestCrossing, 
             nearestStation,
             disclaimer: "RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation. Always obey local safety signals."
         };

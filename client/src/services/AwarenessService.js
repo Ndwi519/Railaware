@@ -25,6 +25,14 @@ export class NetworkError extends Error {
   }
 }
 
+/**
+ * AwarenessService - UI Adapter Layer
+ * 
+ * Maps backend payload data to explicit business semantics and visual states.
+ * This is not just a passive pass-through; it owns the resolution of status labels,
+ * structural disclaimer text, and rendering-specific data shapes to decouple 
+ * the UI from the exact structure of the backend `/api/v1/awareness` response.
+ */
 export class AwarenessService {
   /**
    * @param {Function} [fetchImpl] - Injected fetch implementation (defaults to global fetch).
@@ -69,12 +77,14 @@ export class AwarenessService {
       awareness: {
         status: data.nearbyTracks?.length > 0 ? 'TRACKS_NEARBY' : 'NO_TRACKS_NEARBY',
         distanceMetres: data.nearbyTracks?.length > 0 ? Math.round(data.nearbyTracks[0].crossTrackDistanceMetres) : null,
-        requiresProminentDisplay: false // Phase 1 does not know train locations, cannot assert danger
+        requiresProminentDisplay: false, // Phase 1 does not know train locations, cannot assert danger
+        nearestCrossing: data.nearestCrossing || null,
+        nearbyTracks: data.nearbyTracks || []
       },
       discoveryContext: {
-        corridor: data.nearbyTracks?.length > 0 ? { resolutionStatus: 'RESOLVED' } : null,
-        providerError: false,
-        discoveredTrains: null // explicitly null to indicate no train data
+        corridor: data.nearbyTracks?.length > 0 ? { resolutionStatus: 'RESOLVED', ...data.discoveryContext?.corridor } : (data.discoveryContext?.corridor || null),
+        providerError: data.providerError || data.discoveryContext?.providerError || false,
+        discoveredTrains: data.discoveryContext?.discoveredTrains || null
       },
       assistance: {
         guidance: {

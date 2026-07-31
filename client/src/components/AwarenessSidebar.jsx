@@ -74,6 +74,15 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
               </div>
 
               <div className="flex justify-between items-center">
+                <span className="font-medium">Nearest Crossing:</span>
+                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold text-right">
+                  {observationData.awareness?.nearestCrossing 
+                    ? formatDistance(observationData.awareness.nearestCrossing.distanceMetres)
+                    : 'No known crossing found nearby'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
                 <span className="font-medium">Live Train Data:</span>
                 <span className="text-right flex flex-col items-end">
                   {observationData.discoveryContext?.providerError ?

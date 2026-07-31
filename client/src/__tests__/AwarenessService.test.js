@@ -12,6 +12,29 @@ describe('AwarenessService', () => {
 
   it('fetches observation successfully', async () => {
     const mockData = { id: 1, name: 'Test Observation' };
+    const expectedLegacyResponse = {
+      awareness: {
+        status: 'NO_TRACKS_NEARBY',
+        distanceMetres: null,
+        requiresProminentDisplay: false,
+        nearestCrossing: null,
+        nearbyTracks: []
+      },
+      discoveryContext: {
+        corridor: null,
+        providerError: false,
+        discoveredTrains: null
+      },
+      assistance: {
+        guidance: {
+          title: "Phase 1: Static Awareness Only",
+          instructions: ["RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation."]
+        },
+        availableActions: [],
+        emergencyContact: null
+      },
+      raw: mockData
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       headers: { get: vi.fn().mockReturnValue('test-session') },
@@ -21,7 +44,7 @@ describe('AwarenessService', () => {
     const signal = new AbortController().signal;
     const result = await service.fetchAwareness(10, 20, signal);
 
-    expect(result).toEqual(mockData);
+    expect(result).toEqual(expectedLegacyResponse);
     expect(mockFetch).toHaveBeenCalledWith('http://test-api/api/v1/awareness', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

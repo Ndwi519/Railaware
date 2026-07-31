@@ -29,7 +29,10 @@ class CorridorResolver {
    * @returns {Object} { assembledCorridors, nearestStation }
    */
   async resolveAllClusters(location, radiusMetres) {
+    const tFetchStart = performance.now();
     const { corridors, stations, elements } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
+    const tFetchEnd = performance.now();
+    console.log(`[PERF] Overpass fetch: ${tFetchEnd - tFetchStart} ms`);
     
     let nearestStation = null;
     let minStationDist = Infinity;
@@ -46,10 +49,34 @@ class CorridorResolver {
       }
     }
 
-    if (!elements || elements.length === 0) {
-      return { assembledCorridors: [], nearestStation };
+    let nearestCrossing = null;
+    let minCrossingDist = radiusMetres;
+
+    if (elements) {
+      const { haversineMetres } = require('../calculations/haversine.js');
+      for (const el of elements) {
+        if (el.type === 'node' && el.tags && (el.tags.railway === 'crossing' || el.tags.railway === 'level_crossing')) {
+          if (el.lat && el.lon) {
+            const dist = haversineMetres(location.lat, location.lng, el.lat, el.lon);
+            if (dist <= minCrossingDist) {
+              minCrossingDist = dist;
+              nearestCrossing = {
+                id: el.id.toString(),
+                lat: el.lat,
+                lon: el.lon,
+                distanceMetres: Math.round(dist)
+              };
+            }
+          }
+        }
+      }
     }
 
+    if (!elements || elements.length === 0) {
+      return { assembledCorridors: [], nearestStation, nearestCrossing };
+    }
+
+    const tPreFilterStart = performance.now();
     const { nodeCoords, ways } = _corridorGraph.indexOverpassElements(elements);
     
     // Proximity Pre-Filter: Filter ways BEFORE clustering
@@ -67,7 +94,10 @@ class CorridorResolver {
         }
       }
     }
+    const tPreFilterEnd = performance.now();
+    console.log(`[PERF] Pre-filter: ${tPreFilterEnd - tPreFilterStart} ms`);
 
+    const tGraphStart = performance.now();
     const graph = _corridorGraph.buildWayConnectivityGraph(filteredWays);
     
     const clusters = [];
@@ -92,7 +122,10 @@ class CorridorResolver {
         }
       }
     }
+    const tGraphEnd = performance.now();
+    console.log(`[PERF] Graph/Cluster: ${tGraphEnd - tGraphStart} ms`);
 
+    const tAssemblyStart = performance.now();
     const assembledCorridors = [];
 
     for (const cluster of clusters) {
@@ -105,8 +138,10 @@ class CorridorResolver {
         log.warn('Failed to assemble cluster', { error: e.message, wayIds: cluster.wayIds });
       }
     }
+    const tAssemblyEnd = performance.now();
+    console.log(`[PERF] Assembly: ${tAssemblyEnd - tAssemblyStart} ms`);
 
-    return { assembledCorridors, nearestStation };
+    return { assembledCorridors, nearestStation, nearestCrossing };
   }
 
   /**

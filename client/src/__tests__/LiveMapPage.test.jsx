@@ -40,8 +40,11 @@ describe('LiveMapPage', () => {
         });
 
         const mockResponse = {
+            nearbyTracks: [{ id: 'track1', crossTrackDistanceMetres: 1200 }],
+            nearestCrossing: null,
+            nearestStation: null,
             observation: { phase: 'observing' },
-            awareness: { status: 'DISTANT', distanceMetres: 1200 },
+            awareness: { status: 'TRACKS_NEARBY', distanceMetres: 1200 },
             assistance: {
                 guidance: { title: 'Assistance Info', instructions: ['Do not cross.'] },
                 availableActions: ['DIAL_EMERGENCY'],
@@ -64,16 +67,15 @@ describe('LiveMapPage', () => {
             render(<LiveMapPage />);
         });
 
-        expect(await screen.findByText(/Status: Distant/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Status: Tracks Nearby/i)).toBeInTheDocument();
         expect(screen.getByText(/~1200 m/i)).toBeInTheDocument();
         expect(screen.getByText('On Railway Corridor')).toBeInTheDocument();
         expect(screen.getByText(/1 Trains Estimated/i)).toBeInTheDocument();
         expect(screen.getByText(/TestStrategy/i)).toBeInTheDocument();
 
         // Assert Assistance Guidance
-        expect(screen.getByText('Assistance Info')).toBeInTheDocument();
-        expect(screen.getByText('Do not cross.')).toBeInTheDocument();
-        expect(screen.getByText('📞 Call Emergency')).toBeInTheDocument();
+        expect(screen.getByText(/Phase 1: Static Awareness Only/i)).toBeInTheDocument();
+        expect(screen.getByText(/situational awareness based on public data/i)).toBeInTheDocument();
     });
 
     it('renders UNRESOLVED topological gap state', async () => {

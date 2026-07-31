@@ -1,51 +1,50 @@
-var _fs = _interopRequireDefault(require("fs"));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-async function run() {
-  console.log("Measuring performance...");
-  const startMemory = process.memoryUsage();
-  const lat = 26.9205;
-  const lng = 75.7876;
-  let errors = 0;
-  let statusCodes = {};
-  const measureRun = async count => {
-    const times = [];
-    const memBefore = process.memoryUsage();
-    for (let i = 0; i < count; i++) {
-      const t0 = performance.now();
-      try {
-        const res = await fetch('http://localhost:3001/api/v1/observation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            lat,
-            lng
-          })
-        });
-        statusCodes[res.status] = (statusCodes[res.status] || 0) + 1;
-        await res.json();
-      } catch (e) {
-        errors++;
-      }
-      const t1 = performance.now();
-      times.push(t1 - t0);
-    }
-    const memAfter = process.memoryUsage();
-    const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    times.sort((a, b) => a - b);
-    const p95 = times[Math.floor(times.length * 0.95)];
-    const max = times[times.length - 1];
-    console.log(`\n--- Run of ${count} requests ---`);
-    console.log(`Average API response time: ${avg.toFixed(2)}ms`);
-    console.log(`95th percentile response: ${p95.toFixed(2)}ms`);
-    console.log(`Slowest request: ${max.toFixed(2)}ms`);
-    console.log(`Status codes:`, statusCodes);
-    console.log(`Memory Usage Before: RSS ${Math.round(memBefore.rss / 1024 / 1024)}MB, Heap ${Math.round(memBefore.heapUsed / 1024 / 1024)}MB`);
-    console.log(`Memory Usage After: RSS ${Math.round(memAfter.rss / 1024 / 1024)}MB, Heap ${Math.round(memAfter.heapUsed / 1024 / 1024)}MB`);
-    statusCodes = {};
+const { OverpassClient } = require('./corridor-resolver/overpass.js');
+const { CorridorResolver } = require('./corridor-resolver/resolver.js');
+
+async function measure() {
+  const config = {
+    url: 'https://overpass-api.de/api/interpreter',
+    gridSizeDeg: 0.005,
+    maxAttempts: 2,
+    retryDelaysMs: [1000],
+    requestTimeoutMs: 15000,
+    cacheTtlSuccessMs: 30 * 60 * 1000,
+    cacheTtlNoCorridorMs: 10 * 60 * 1000,
+    cacheTtlTransientFailureMs: 5000,
   };
-  await measureRun(100);
-  await measureRun(1000);
+  const client = new OverpassClient(config);
+  const resolver = new CorridorResolver(client);
+  
+  const location = { lat: 28.632, lng: 77.236 }; // NDLS Area (where crossing exists)
+  const radiusMetres = 2000;
+
+  console.log(`Starting performance measurement for ${radiusMetres}m radius...`);
+  
+  // Instrument Overpass fetch explicitly for timing (Resolver calls it internally, but we can wrap it)
+  const originalFetch = client.fetchNearbyRailways.bind(client);
+  client.fetchNearbyRailways = async (loc, rad) => {
+    const start = process.hrtime.bigint();
+    const res = await originalFetch(loc, rad);
+    const end = process.hrtime.bigint();
+    console.log(`(a) Overpass fetch + cache parse: ${Number(end - start) / 1e6} ms`);
+    return res;
+  };
+  
+  // Actually run
+  const t0 = process.hrtime.bigint();
+  const res = await resolver.resolveAllClusters(location, radiusMetres);
+  const t1 = process.hrtime.bigint();
+  
+  console.log(`Total resolveAllClusters time (Cold): ${Number(t1 - t0) / 1e6} ms`);
+  console.log(`Found ${res.assembledCorridors.length} corridors`);
+
+  console.log(`\nStarting second performance measurement for ${radiusMetres}m radius (Cached)...`);
+  const t2 = process.hrtime.bigint();
+  const resCached = await resolver.resolveAllClusters(location, radiusMetres);
+  const t3 = process.hrtime.bigint();
+
+  console.log(`Total resolveAllClusters time (Cached): ${Number(t3 - t2) / 1e6} ms`);
+  console.log(`Found ${resCached.assembledCorridors.length} corridors`);
 }
-run();
+
+measure().catch(console.error);

@@ -79,6 +79,7 @@ class OverpassClient {
       (
         way["railway"="rail"](around:${radiusMetres},${location.lat},${location.lng});
         node["railway"="station"](around:${radiusMetres},${location.lat},${location.lng});
+        node["railway"~"^(crossing|level_crossing)$"](around:${radiusMetres},${location.lat},${location.lng});
       );
       out body;
       >;

@@ -115,6 +115,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
 
   const corridor = observationData?.discoveryContext?.corridor;
   const trains = observationData?.discoveryContext?.discoveredTrains;
+  const nearbyTracks = observationData?.awareness?.nearbyTracks;
 
   // Extract snapped point if available
   // The corridor resolver should ideally return the snapped coordinate.
@@ -147,13 +148,25 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
           <MapResizer />
           <MapInteractions setAutoFollow={setAutoFollow} isSimulating={isSimulating} onMapClick={onMapClick} />
 
-          {/* Railway Corridor Polyline */}
+          {/* Railway Corridor Polyline (Legacy) */}
           {corridor?.corridorGeometry && (
             <Polyline
               positions={corridor.corridorGeometry.map(p => [p.lat, p.lng])}
               pathOptions={{ color: '#0f172a', weight: 6, opacity: 0.6 }}
             />
           )}
+
+          {/* Nearby Tracks Polylines (Phase 2) */}
+          {nearbyTracks?.map((track, idx) => {
+            if (!track.geometry || track.geometry.length === 0) return null;
+            return (
+              <Polyline
+                key={track.id || idx}
+                positions={track.geometry.map(p => [p.lat, p.lng])}
+                pathOptions={{ color: '#0f172a', weight: 6, opacity: 0.6 }}
+              />
+            );
+          })}
 
           {/* Dashed line snapping user to track */}
           {position && snappedPoint && (
@@ -170,9 +183,16 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
             </Marker>
           )}
 
-          {/* Raw GPS Position */}
+          {/* Raw GPS Position & Track Distance Ring */}
           {position && (
             <>
+              {observationData?.awareness?.distanceMetres != null && (
+                <Circle 
+                  center={position} 
+                  radius={observationData.awareness.distanceMetres} 
+                  pathOptions={{ color: '#f59e0b', fillOpacity: 0.05, weight: 1, dashArray: '4, 8' }} 
+                />
+              )}
               <Circle center={position} radius={25} pathOptions={{ color: '#3b82f6', fillOpacity: 0.2, weight: 1, stroke: false }} />
               <Marker position={position}>
                 <Popup>{isSimulating ? 'Spoofed GPS Location' : 'Raw GPS Location'}</Popup>
