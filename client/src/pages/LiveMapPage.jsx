@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LiveMap from '../components/LiveMap';
 import DeveloperDiagnosticsPanel from '../components/DeveloperDiagnosticsPanel';
-import EmergencyMode from '../components/EmergencyMode';
+import GuidedEmergencyMode from '../components/GuidedEmergencyMode';
 import AwarenessSidebar from '../components/AwarenessSidebar';
 import { useMarkerAnimation } from '../hooks/useMarkerAnimation';
 import { useLocationTracking } from '../hooks/useLocationTracking';
@@ -17,6 +17,7 @@ const LOADING_STEPS = [
 
 export default function LiveMapPage() {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [isEmergencyModeActive, setIsEmergencyModeActive] = useState(false);
   const { isSimulating, setIsSimulating, simulatedPosition, setSimulatedPosition } =
     useSimulation();
 
@@ -137,7 +138,7 @@ export default function LiveMapPage() {
       </div>
 
       {/* Developer Diagnostics Panel */}
-      {isDev && (
+      {!import.meta.env.PROD && (
         <DeveloperDiagnosticsPanel
           isOpen={isDiagnosticsOpen}
           setIsOpen={setIsDiagnosticsOpen}
@@ -151,8 +152,23 @@ export default function LiveMapPage() {
         />
       )}
 
+      {/* Emergency Mode Toggle Button */}
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-[55] w-11/12 max-w-md">
+        <button
+          onClick={() => setIsEmergencyModeActive(true)}
+          className="w-full py-4 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-2xl uppercase tracking-wider rounded-xl shadow-2xl border-4 border-red-800 transition-all"
+        >
+          I need help now
+        </button>
+      </div>
+
       {/* Emergency Mode Overlay */}
-      <EmergencyMode observationData={observationData} />
+      {isEmergencyModeActive && (
+        <GuidedEmergencyMode
+          awarenessData={observationData}
+          onClose={() => setIsEmergencyModeActive(false)}
+        />
+      )}
 
       {/* Permission Denied — Full Screen Blocking Overlay */}
       {permissionStatus === 'denied' && (

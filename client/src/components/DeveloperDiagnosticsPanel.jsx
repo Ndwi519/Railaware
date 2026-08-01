@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Activity, Server, MapPin } from 'lucide-react';
+import { Settings, X, Activity, Server, MapPin, Info } from 'lucide-react';
 
 export default function DeveloperDiagnosticsPanel({ 
   isSimulating, 
@@ -67,7 +67,7 @@ export default function DeveloperDiagnosticsPanel({
     }
   };
 
-  if (import.meta.env.PROD) return null; // Ensure this never renders in production
+  if (import.meta.env.PROD) return null;
 
   return (
     <>
@@ -181,6 +181,66 @@ export default function DeveloperDiagnosticsPanel({
                       fraction: observationData.discoveryContext?.corridor?.userSegmentFraction?.toFixed(4)
                     }, null, 2)}
                   </pre>
+                </div>
+
+                <div>
+                  <h3 className="text-emerald-400 font-semibold uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1">
+                    <Info className="w-3 h-3" /> Confidence & Context
+                  </h3>
+                  <div className="bg-slate-950 p-2 rounded border border-slate-800 text-slate-300">
+                    {/* Confidence Badges */}
+                    <div className="grid grid-cols-1 gap-2 mb-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-medium text-slate-400">Observation</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          observationData.confidence?.observationConfidence === 'HIGH' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-800' :
+                          observationData.confidence?.observationConfidence === 'MEDIUM' ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-800' :
+                          observationData.confidence?.observationConfidence === 'LOW' ? 'bg-red-900/50 text-red-400 border border-red-800' :
+                          observationData.confidence?.observationConfidence === 'UNKNOWN' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                          'bg-slate-800 text-slate-500 border border-slate-700' // UNASSESSED
+                        }`}>
+                          {observationData.confidence?.observationConfidence || 'UNASSESSED'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-medium text-slate-400">Provider</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          observationData.confidence?.providerReliability === 'HIGH' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-800' :
+                          observationData.confidence?.providerReliability === 'MEDIUM' ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-800' :
+                          observationData.confidence?.providerReliability === 'LOW' ? 'bg-red-900/50 text-red-400 border border-red-800' :
+                          observationData.confidence?.providerReliability === 'UNKNOWN' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                          'bg-slate-800 text-slate-500 border border-slate-700' // UNASSESSED
+                        }`}>
+                          {observationData.confidence?.providerReliability || 'UNASSESSED'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-medium text-slate-400">Topology</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          observationData.confidence?.topologyConfidence === 'HIGH' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-800' :
+                          observationData.confidence?.topologyConfidence === 'MEDIUM' ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-800' :
+                          observationData.confidence?.topologyConfidence === 'LOW' ? 'bg-red-900/50 text-red-400 border border-red-800' :
+                          observationData.confidence?.topologyConfidence === 'UNKNOWN' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                          'bg-slate-800 text-slate-500 border border-slate-700' // UNASSESSED
+                        }`}>
+                          {observationData.confidence?.topologyConfidence || 'UNASSESSED'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-xs text-slate-400">
+                      {observationData.discoveryContext?.corridor?.stationResolutionDetails?.status === 'RESOLVED' && (
+                        <p className="text-[10px] mt-2 border-t border-slate-800 pt-2">
+                          Topology derived via {observationData.discoveryContext.corridor.stationResolutionDetails.attempts?.find(a => a.success)?.strategy || 'Unknown Strategy'}
+                        </p>
+                      )}
+                      {observationData.discoveryContext?.corridor?.stationResolutionDetails?.status === 'UNRESOLVED' && (
+                        <p className="text-[10px] mt-2 border-t border-slate-800 pt-2 text-orange-400">
+                          Live discovery paused: Unable to resolve local topology bounding stations.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>

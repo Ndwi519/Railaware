@@ -94,6 +94,8 @@ export class AwarenessService {
         availableActions: [],
         emergencyContact: null
       },
+      _isCached: data._isCached,
+      _cachedAt: data._cachedAt,
       raw: data
     };
 

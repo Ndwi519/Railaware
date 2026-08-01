@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Info, Menu, X } from 'lucide-react';
+import { Info, Menu, X, AlertTriangle } from 'lucide-react';
 import { formatStatus, formatDistance } from '../utils/awarenessFormatters';
 import ScheduledServices from './ScheduledServices';
 
@@ -45,6 +45,19 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
           </button>
         </div>
 
+        {/* Offline Cache Warning Banner */}
+        {observationData._isCached && (
+          <div className="bg-amber-100 border-l-4 border-amber-500 p-3 flex flex-col justify-center shadow-inner">
+            <div className="flex items-start gap-2">
+              <Info className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-900 leading-tight">
+                <span className="font-bold block mb-1">You appear to be offline.</span>
+                Showing last known data from {Math.round((Date.now() - observationData._cachedAt) / 60000)} minutes ago. This may be outdated.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Desktop Header */}
         <div className="hidden lg:block p-5 border-b border-slate-100 bg-slate-50">
           <h2 className="font-bold text-lg text-slate-800">Awareness Panel</h2>
@@ -64,6 +77,15 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
                 </p>
               </div>
             </div>
+
+            {observationData.awareness?.status === 'TRACKS_NEARBY' && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-xl flex items-start gap-3 shadow-sm border border-red-100">
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm font-semibold text-red-900 leading-snug">
+                  Do not walk along tracks. If tracks are nearby, keep clear and use marked crossings only.
+                </div>
+              </div>
+            )}
 
             <ScheduledServices corridorId={observationData.discoveryContext?.corridor?.id || observationData.nearbyTracks?.[0]?.id} />
 
@@ -103,6 +125,16 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
                 </span>
               </div>
 
+              {/* Static Awareness Phase 1 Block */}
+              <div className="mt-4 bg-blue-50/50 rounded-xl p-4 border border-blue-100">
+                <h4 className="flex items-center text-sm font-bold text-blue-900 mb-2">
+                  Phase 1: Static Awareness Only
+                </h4>
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation. Always obey local safety signals.
+                </p>
+              </div>
+
               {/* Assistance Guidance */}
               {observationData.assistance?.guidance && (
                 <div className="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-100">
@@ -128,66 +160,6 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
                   </a>
                 </div>
               )}
-
-              {/* Confidence & Context */}
-              <div className="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <h4 className="flex items-center text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  <Info className="w-3 h-3 mr-1" /> Confidence &amp; Context
-                </h4>
-
-                {/* Confidence Badges */}
-                <div className="grid grid-cols-1 gap-2 mb-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-600">Observation</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      observationData.confidence?.observationConfidence === 'HIGH' ? 'bg-green-100 text-green-700' :
-                      observationData.confidence?.observationConfidence === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                      observationData.confidence?.observationConfidence === 'LOW' ? 'bg-red-100 text-red-700' :
-                      observationData.confidence?.observationConfidence === 'UNKNOWN' ? 'bg-slate-200 text-slate-600' :
-                      'bg-gray-100 text-gray-500' // UNASSESSED
-                    }`}>
-                      {observationData.confidence?.observationConfidence || 'UNASSESSED'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-600">Provider</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      observationData.confidence?.providerReliability === 'HIGH' ? 'bg-green-100 text-green-700' :
-                      observationData.confidence?.providerReliability === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                      observationData.confidence?.providerReliability === 'LOW' ? 'bg-red-100 text-red-700' :
-                      observationData.confidence?.providerReliability === 'UNKNOWN' ? 'bg-slate-200 text-slate-600' :
-                      'bg-gray-100 text-gray-500' // UNASSESSED
-                    }`}>
-                      {observationData.confidence?.providerReliability || 'UNASSESSED'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-slate-600">Topology</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      observationData.confidence?.topologyConfidence === 'HIGH' ? 'bg-green-100 text-green-700' :
-                      observationData.confidence?.topologyConfidence === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                      observationData.confidence?.topologyConfidence === 'LOW' ? 'bg-red-100 text-red-700' :
-                      observationData.confidence?.topologyConfidence === 'UNKNOWN' ? 'bg-slate-200 text-slate-600' :
-                      'bg-gray-100 text-gray-500' // UNASSESSED
-                    }`}>
-                      {observationData.confidence?.topologyConfidence || 'UNASSESSED'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-1 text-xs text-slate-500">
-                  {observationData.discoveryContext?.corridor?.stationResolutionDetails?.status === 'RESOLVED' && (
-                    <p className="text-[10px] mt-2 border-t pt-2 opacity-70">
-                      Topology derived via {observationData.discoveryContext.corridor.stationResolutionDetails.attempts?.find(a => a.success)?.strategy || 'Unknown Strategy'}
-                    </p>
-                  )}
-                  {observationData.discoveryContext?.corridor?.stationResolutionDetails?.status === 'UNRESOLVED' && (
-                    <p className="text-[10px] mt-2 border-t pt-2 text-orange-600/80">
-                      Live discovery paused: Unable to resolve local topology bounding stations.
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>

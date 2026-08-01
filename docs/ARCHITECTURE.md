@@ -1,81 +1,54 @@
-# RailAware Architecture Guide
+# RailAware Architecture
 
-## 1. Architecture Summary
-
-### Project Purpose
-RailAware is an awareness platform designed to evaluate and communicate real-time railway safety states to users near active rail infrastructure. Its primary directive is to provide highly confident safety indicators without ever collapsing uncertainty into a false sense of safety.
-
-### Architectural Philosophy
-The core philosophy is **objective reality vs. subjective awareness**.
-- The system strictly isolates the acquisition of external provider telemetry (objective reality) from the calculation of user safety (subjective awareness).
-- Uncertainty is treated as a first-class citizen. "We don't know" and "There is no train" are structurally impossible to conflate.
-
-### Production Pipeline
-The pipeline is strictly unidirectional (ADR 0001). Data flows in a single direction without cycles:
-1. **Acquisition:** Providers fetch external data.
-2. **Standardisation:** Data is normalized into `TrainObservation`.
-3. **Estimation:** The `TrainEstimator` synthesizes physical observations with known topology to measure absolute along-track distances.
-4. **Evaluation:**
-   - `ConfidenceEngine` quantifies data reliability.
-   - `AwarenessEngine` determines subjective user safety (e.g., `APPROACHING_STATION`).
-5. **Presentation:** The frontend renders solely based on `AwarenessContext.requiresProminentDisplay`.
-
-### Dependency Rules & Invariants
-- **Provider Independence (ADR 0002):** No internal engine may depend on provider-specific fields, keys, or anomalies.
-- **Evaluation Isolation (ADR 0007):** The production pipeline must never depend on or be aware of the evaluation framework. Evaluation must never mutate production state.
-- **Estimation Ownership (ADR 0006):** All distance mathematics reside exclusively in `TrainEstimator`.
-
-### Confidence Model (ADR 0003)
-Confidence is divided into three completely orthogonal pillars:
-- `ProviderReliability`: How trustworthy is the data source?
-- `TopologyConfidence`: How accurately did we map the physical track?
-- `ObservationConfidence`: How recent and complete is the telemetry?
-**Invariant:** These three pillars are never mathematically combined into a "composite score".
-
----
-
-## 2. Runtime Data Flow
-
-### Production Data Flow
+## Backend Spatial Resolution Pipeline
 
 ```mermaid
 flowchart TD
-    A[External Provider API] -->|Raw JSON| B[ProviderInterpreter]
-    B -->|Molds to Domain| C(TrainObservation)
-    C -->|Input| D{TrainEstimator}
-    D -->|Calculates Distances| E(EstimatedTrainState)
-    E -->|Input| F{ConfidenceEngine}
-    E -->|Input| G{AwarenessEngine}
-    F -->|Outputs| H(ConfidenceAssessment)
-    H -->|Input| G
-    G -->|Outputs| I(AwarenessContext)
-    I -->|JSON Response| J[Frontend Presentation]
+    A[Client Request with GPS] --> B[Overpass API]
+    B -->|Raw OSM Nodes & Ways| C[Corridor Graph Builder]
+    C -->|Topological Graph| D[Cluster Resolution]
+    D -->|Grouped Parallel Tracks| E[Corridor Assembly]
+    E -->|Structured Corridors| F[Awareness Response]
 ```
 
-1. **Provider:** Fetches raw data from the third-party API.
-2. **TrainObservation:** The standard domain object reflecting objective reality.
-3. **TrainEstimator:** Uses corridor topology to project the train's `segmentProgress` into absolute meters.
-4. **EstimatedTrainState:** The output containing pure physical distances (e.g., `distanceMetres: 4500`).
-5. **ConfidenceEngine:** Evaluates the `TrainObservation` to assess data staleness and completeness.
-6. **AwarenessEngine:** Consumes both physical distances and confidence levels to determine semantic safety states (e.g., `AT_STATION`, `UNKNOWN`).
-7. **AwarenessContext:** The final payload containing `requiresProminentDisplay: true/false`.
-8. **Presentation:** The UI blindly respects the context and triggers the overlay.
+## API Endpoint Separation
 
-### Evaluation Framework Flow
-
-The Evaluation Framework exercises exactly the same pipeline but isolates it.
+The backend surfaces three distinct endpoints, intentionally separating authoritative spatial facts from probabilistic assumptions.
 
 ```mermaid
 flowchart TD
-    A[Scenario JSON] --> B[SimulationRunner]
-    B -->|Injects Mock Data| C[MockObservationProvider]
-    C -->|Molds to Domain| D(TrainObservation)
-    D --> E{Production Engines}
-    E --> F(AwarenessContext)
-    F --> G[EvaluationRecorder]
-    A -->|Truth State| G
-    G -->|Tick Ledger| H{MetricsEngine}
-    H -->|Computes ADR 0007| I(Release Report)
-```
+    Client -->|Authoritative| A[/api/v1/awareness]
+    Client -->|Timetable/Scheduled| B[/api/v1/schedule/corridor/:id]
+    Client -->|Research/Probabilistic| C[/api/v1/observation]
 
-Instead of hitting external APIs, the `SimulationRunner` drives time forward deterministically, injecting static scenario payloads into the production engines. The `EvaluationRecorder` logs the system's subjective output (`AwarenessContext`) alongside the scenario's objective `groundTruth`, allowing the `MetricsEngine` to objectively calculate `PositionError` and false negatives.
+    A -.->|Returns| D[Physical Track/Crossing Data]
+    B -.->|Returns| E[Static Timetable Schedules]
+    C -.->|Returns| F[Confidence-scored train assumptions]
+```
+- **`/api/v1/awareness`**: The core, verified product. It exclusively answers questions about the physical environment based on known spatial topology.
+- **`/api/v1/schedule/corridor/:id`**: Provides published schedule data. It never implies live train positioning.
+- **`/api/v1/observation`**: A research-tier endpoint. It attempts to score real-world observations based on provider reliability and topology confidence, but remains explicitly experimental.
+
+## Service Worker & Offline Fallback Decision Tree
+
+The Service Worker explicitly distinguishes between genuine network failures (where cache is appropriate) and application-level or server-level errors (where the user must be informed honestly).
+
+```mermaid
+flowchart TD
+    A[Client fetch /api/v1/awareness] --> B{Network Fetch Success?}
+    
+    B -->|Yes (200 OK)| C[Clone Response]
+    C --> D[Parse & Save to IndexedDB]
+    D --> E[Return Response to App]
+    
+    B -->|Yes (500 Error, 429 Rate Limit)| F[Return Error Response to App]
+    F --> G[App Renders Network Error Overlay]
+    
+    B -->|No (Throws Network Error / Offline)| H{Check IndexedDB Cache}
+    H -->|Data Exists| I[Inject _isCached: true]
+    I --> J[Return Cached Payload to App]
+    J --> K[App Renders Amber Offline Banner]
+    
+    H -->|No Data| L[Return 503 Offline Error]
+    L --> M[App Renders Network Error Overlay]
+```
