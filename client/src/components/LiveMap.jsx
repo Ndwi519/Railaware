@@ -30,6 +30,16 @@ const snappedIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+const userIcon = new L.Icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 const defaultCenter = [28.6139, 77.2090]; // NDLS fallback
 
 // Helper component to recenter map when position changes (unless user panned)
@@ -37,7 +47,7 @@ function Recenter({ position, autoFollow }) {
   const map = useMap();
   useEffect(() => {
     if (position && autoFollow) {
-      map.setView(position, map.getZoom() > 16 ? map.getZoom() : 17, { animate: false });
+      map.setView(position, map.getZoom() > 17 ? map.getZoom() : 18, { animate: false });
     }
   }, [position, map, autoFollow]);
   return null;
@@ -112,7 +122,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
       >
         <MapContainer
           center={position || defaultCenter}
-          zoom={17}
+          zoom={18}
           maxZoom={19}
           className="w-full h-full"
           style={{ zIndex: 0 }}
@@ -173,7 +183,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
                 />
               )}
               <Circle center={position} radius={25} pathOptions={{ color: '#3b82f6', fillOpacity: 0.2, weight: 1, stroke: false }} />
-              <Marker position={position}>
+              <Marker position={position} icon={userIcon}>
                 <Popup>{isSimulating ? 'Spoofed GPS Location' : 'Raw GPS Location'}</Popup>
               </Marker>
             </>
