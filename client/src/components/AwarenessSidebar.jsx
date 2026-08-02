@@ -107,33 +107,8 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
                 </span>
               </div>
 
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Live Train Data:</span>
-                <span className="text-right flex flex-col items-end">
-                  {observationData.discoveryContext?.providerError ?
-                    <span className="text-red-600 font-semibold bg-red-50 px-2 py-1 rounded text-xs">Currently Unavailable</span> :
-                  observationData.discoveryContext?.corridor?.resolutionStatus === 'UNRESOLVED' ?
-                    <span className="text-orange-600 font-semibold bg-orange-50 px-2 py-1 rounded text-xs">Topological Gap</span> :
-                  observationData.discoveryContext?.discoveredTrains === null ?
-                    <span className="text-slate-500 font-semibold bg-slate-100 px-2 py-1 rounded text-xs">Train discovery not performed</span> :
-                  observationData.discoveryContext?.discoveredTrains?.length === 0 ?
-                    <span className="text-slate-700 font-semibold bg-slate-100 px-2 py-1 rounded text-xs">No approaching trains identified</span> :
-                  observationData.discoveryContext?.discoveredTrains?.length > 0 ?
-                    <span className="text-slate-700 font-semibold bg-slate-100 px-2 py-1 rounded text-xs">{observationData.discoveryContext?.discoveredTrains?.length} Trains Estimated Nearby</span> :
-                    <span className="text-slate-400">Loading...</span>
-                  }
-                </span>
-              </div>
 
-              {/* Static Awareness Phase 1 Block */}
-              <div className="mt-4 bg-blue-50/50 rounded-xl p-4 border border-blue-100">
-                <h4 className="flex items-center text-sm font-bold text-blue-900 mb-2">
-                  Phase 1: Static Awareness Only
-                </h4>
-                <p className="text-sm text-blue-800 leading-relaxed">
-                  RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation. Always obey local safety signals.
-                </p>
-              </div>
+
 
               {/* Assistance Guidance */}
               {observationData.assistance?.guidance && (

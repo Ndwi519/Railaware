@@ -88,7 +88,7 @@ export class AwarenessService {
       },
       assistance: {
         guidance: {
-          title: "Phase 1: Static Awareness Only",
+          title: "About This Information",
           instructions: [data.disclaimer || "RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation."]
         },
         availableActions: [],

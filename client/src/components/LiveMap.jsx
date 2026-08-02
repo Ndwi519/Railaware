@@ -33,36 +33,16 @@ const snappedIcon = new L.Icon({
 const defaultCenter = [28.6139, 77.2090]; // NDLS fallback
 
 // Helper component to recenter map when position changes (unless user panned)
-function Recenter({ position, autoFollow, hasCorridor }) {
+function Recenter({ position, autoFollow }) {
   const map = useMap();
   useEffect(() => {
-    if (position && autoFollow && !hasCorridor) {
+    if (position && autoFollow) {
       map.setView(position, map.getZoom() > 16 ? map.getZoom() : 17, { animate: false });
     }
-  }, [position, map, autoFollow, hasCorridor]);
+  }, [position, map, autoFollow]);
   return null;
 }
 
-function CorridorViewport({ corridor, position, snappedPoint, autoFollow }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!autoFollow || !corridor?.corridorGeometry?.length) return;
-
-    const positions = corridor.corridorGeometry.map(p => [p.lat, p.lng]);
-    if (position) positions.push(position);
-    if (snappedPoint) positions.push(snappedPoint);
-
-    map.fitBounds(L.latLngBounds(positions), {
-      animate: true,
-      duration: 0.8,
-      maxZoom: 17,
-      padding: [48, 48],
-    });
-  }, [autoFollow, corridor?.corridorGeometry, map, position, snappedPoint]);
-
-  return null;
-}
 
 /**
  * MapResizer listens for changes in the MapContainer's element size (via ResizeObserver)
@@ -143,8 +123,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
             attribution='&copy; OpenStreetMap contributors &copy; CARTO'
             maxZoom={19}
           />
-          <Recenter position={position} autoFollow={autoFollow} hasCorridor={Boolean(corridor?.corridorGeometry?.length)} />
-          <CorridorViewport corridor={corridor} position={position} snappedPoint={snappedPoint} autoFollow={autoFollow} />
+          <Recenter position={position} autoFollow={autoFollow} />
           <MapResizer />
           <MapInteractions setAutoFollow={setAutoFollow} isSimulating={isSimulating} onMapClick={onMapClick} />
 
