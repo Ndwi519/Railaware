@@ -114,12 +114,7 @@ export default function LiveMap({ position, isSimulating, onMapClick, observatio
 
   return (
     <div className="relative h-full w-full">
-      <div
-        className="relative h-full"
-        style={{
-          width: isDiagnosticsOpen ? 'calc(100% - 384px)' : '100%'
-        }}
-      >
+      <div className="relative h-full w-full">
         <MapContainer
           center={position || defaultCenter}
           zoom={18}

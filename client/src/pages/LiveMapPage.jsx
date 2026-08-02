@@ -84,7 +84,10 @@ export default function LiveMapPage() {
       />
 
       {/* Main Map Container */}
-      <div className="flex-1 relative h-full min-w-0">
+      <div 
+        className="flex-1 relative h-full min-w-0 transition-all duration-300"
+        style={{ marginRight: isDiagnosticsOpen ? '384px' : '0px' }}
+      >
 
         {/* Background Map layer */}
         <div className="absolute inset-0 z-0">
