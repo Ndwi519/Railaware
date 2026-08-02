@@ -135,6 +135,15 @@ export default function LiveMapPage() {
             </div>
           </div>
         )}
+        {/* Emergency Mode Toggle Button */}
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-[55] w-11/12 max-w-md">
+          <button
+            onClick={() => setIsEmergencyModeActive(true)}
+            className="w-full py-4 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-2xl uppercase tracking-wider rounded-xl shadow-2xl border-4 border-red-800 transition-all"
+          >
+            I need help now
+          </button>
+        </div>
       </div>
 
       {/* Developer Diagnostics Panel */}
@@ -151,16 +160,6 @@ export default function LiveMapPage() {
           onRefresh={requestObservationRefresh}
         />
       )}
-
-      {/* Emergency Mode Toggle Button */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-[55] w-11/12 max-w-md">
-        <button
-          onClick={() => setIsEmergencyModeActive(true)}
-          className="w-full py-4 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-2xl uppercase tracking-wider rounded-xl shadow-2xl border-4 border-red-800 transition-all"
-        >
-          I need help now
-        </button>
-      </div>
 
       {/* Emergency Mode Overlay */}
       {isEmergencyModeActive && (
