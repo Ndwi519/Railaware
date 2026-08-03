@@ -79,6 +79,7 @@ export class AwarenessService {
         distanceMetres: data.nearbyTracks?.length > 0 ? Math.round(data.nearbyTracks[0].crossTrackDistanceMetres) : null,
         requiresProminentDisplay: false, // Phase 1 does not know train locations, cannot assert danger
         nearestCrossing: data.nearestCrossing || null,
+        nearestStation: data.nearestStation || null,
         nearbyTracks: data.nearbyTracks || []
       },
       discoveryContext: {

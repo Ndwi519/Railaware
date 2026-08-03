@@ -10,6 +10,10 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
   // Show sidebar structure only if there is observationData and no train nearby
   if (!observationData || isTrainNearby) return null;
 
+  const nearestTrack = observationData.awareness?.nearbyTracks?.[0];
+  const nearestStation = observationData.awareness?.nearestStation;
+  const nearestCrossing = observationData.awareness?.nearestCrossing;
+
   return (
     <>
       {/* Mobile/Tablet Toggle Button */}
@@ -20,6 +24,18 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
       >
         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
+
+      {/* ALWAYS VISIBLE SAFETY STRIP - displayed whenever nearby railway infrastructure exists, no click required */}
+      {observationData.awareness?.status === 'TRACKS_NEARBY' && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-11/12 max-w-lg pointer-events-none">
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-xl flex items-start gap-3 shadow-2xl border border-red-100 pointer-events-auto">
+            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm font-semibold text-red-900 leading-snug">
+              Do not walk along tracks. If tracks are nearby, keep clear and use marked crossings only.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sidebar Container */}
       <div
@@ -45,19 +61,6 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
           </button>
         </div>
 
-        {/* Offline Cache Warning Banner */}
-        {observationData._isCached && (
-          <div className="bg-amber-100 border-l-4 border-amber-500 p-3 flex flex-col justify-center shadow-inner">
-            <div className="flex items-start gap-2">
-              <Info className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-900 leading-tight">
-                <span className="font-bold block mb-1">You appear to be offline.</span>
-                Showing last known data from {Math.round((Date.now() - observationData._cachedAt) / 60000)} minutes ago. This may be outdated.
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Desktop Header */}
         <div className="hidden lg:block p-5 border-b border-slate-100 bg-slate-50">
           <h2 className="font-bold text-lg text-slate-800">Awareness Panel</h2>
@@ -65,77 +68,82 @@ export default function AwarenessSidebar({ observationData, isTrainNearby }) {
 
         <div className="p-5 overflow-y-auto flex-1">
           <div className="space-y-6">
-            {/* Awareness Banner */}
-            <div className="p-4 rounded-xl border flex items-center space-x-3 bg-slate-50 border-slate-200 text-slate-900">
-              <div className="w-3 h-3 rounded-full flex-shrink-0 bg-blue-500" />
-              <div>
-                <h3 className="font-bold text-sm uppercase tracking-wide">
-                  Status: {formatStatus(observationData.awareness?.status)}
+            {/* Corridor Details Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-200 p-4">
+                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">
+                  Matched Corridor
                 </h3>
-                <p className="text-sm mt-0.5 opacity-90">
-                  {formatDistance(observationData.awareness?.distanceMetres)}
-                </p>
+              </div>
+              
+              {!nearestTrack ? (
+                <div className="p-4 bg-slate-50 text-slate-600 text-sm italic border-b border-slate-100">
+                  No nearby railway infrastructure detected.
+                </div>
+              ) : null}
+
+              <div className="divide-y divide-slate-100">
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-600">Nearest Track Distance</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {nearestTrack?.crossTrackDistanceMetres != null 
+                      ? `${Math.round(nearestTrack.crossTrackDistanceMetres)} m`
+                      : 'Unknown'}
+                  </span>
+                </div>
+                
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-600">Track Side</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {nearestTrack?.side || 'Unknown'}
+                  </span>
+                </div>
+
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-600">Nearest Station</span>
+                  <span className="text-sm font-semibold text-slate-900 text-right">
+                    {nearestStation ? nearestStation.name : 'Unknown'}
+                  </span>
+                </div>
+
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-600">Nearest Crossing</span>
+                  <span className="text-sm font-semibold text-slate-900 text-right">
+                    {nearestCrossing ? `${Math.round(nearestCrossing.distanceMetres)} m` : 'Unknown'}
+                  </span>
+                </div>
+
+                <div className="p-4 flex justify-between items-center">
+                  <span className="text-sm font-medium text-slate-600">Offline Status</span>
+                  <span className="text-sm font-semibold text-slate-900 text-right">
+                    {observationData._isCached ? 'Cached' : 'Live'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-slate-50 border-t border-slate-200">
+                <div className="flex items-start gap-3 text-slate-600">
+                  <Info className="w-5 h-5 flex-shrink-0 text-slate-400 mt-0.5" />
+                  <p className="text-xs leading-relaxed">
+                    {observationData.assistance?.guidance?.instructions?.[0] || 'Unknown'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {observationData.awareness?.status === 'TRACKS_NEARBY' && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-xl flex items-start gap-3 shadow-sm border border-red-100">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm font-semibold text-red-900 leading-snug">
-                  Do not walk along tracks. If tracks are nearby, keep clear and use marked crossings only.
-                </div>
+            <ScheduledServices corridorId={observationData.discoveryContext?.corridor?.id || observationData.awareness?.nearbyTracks?.[0]?.id} />
+
+            {/* Assistance SOS Button */}
+            {observationData.assistance?.availableActions?.includes('DIAL_EMERGENCY') && observationData.assistance?.emergencyContact && (
+              <div className="mt-4">
+                <a
+                  href={`tel:${observationData.assistance.emergencyContact.number}`}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm"
+                >
+                  📞 Call {observationData.assistance.emergencyContact.description}
+                </a>
               </div>
             )}
-
-            <ScheduledServices corridorId={observationData.discoveryContext?.corridor?.id || observationData.nearbyTracks?.[0]?.id} />
-
-            {/* Provider Status Details */}
-            <div className="text-sm text-slate-600 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Track Proximity:</span>
-                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">
-                  {observationData.discoveryContext?.corridor ? 'On Railway Corridor' : 'Not yet determined'}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Nearest Crossing:</span>
-                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold text-right">
-                  {observationData.awareness?.nearestCrossing 
-                    ? formatDistance(observationData.awareness.nearestCrossing.distanceMetres)
-                    : 'No known crossing found nearby'}
-                </span>
-              </div>
-
-
-
-
-              {/* Assistance Guidance */}
-              {observationData.assistance?.guidance && (
-                <div className="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <h4 className="flex items-center text-sm font-bold text-blue-800 mb-2">
-                    {observationData.assistance.guidance.title}
-                  </h4>
-                  <div className="space-y-1 text-sm text-blue-900">
-                    {observationData.assistance.guidance.instructions.map((instruction, idx) => (
-                      <p key={idx}>{instruction}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Assistance SOS Button */}
-              {observationData.assistance?.availableActions?.includes('DIAL_EMERGENCY') && observationData.assistance?.emergencyContact && (
-                <div className="mt-4">
-                  <a
-                    href={`tel:${observationData.assistance.emergencyContact.number}`}
-                    className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm"
-                  >
-                    📞 Call {observationData.assistance.emergencyContact.description}
-                  </a>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

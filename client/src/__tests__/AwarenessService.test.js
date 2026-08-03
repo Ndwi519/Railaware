@@ -18,6 +18,7 @@ describe('AwarenessService', () => {
         distanceMetres: null,
         requiresProminentDisplay: false,
         nearestCrossing: null,
+        nearestStation: null,
         nearbyTracks: []
       },
       discoveryContext: {
@@ -27,7 +28,7 @@ describe('AwarenessService', () => {
       },
       assistance: {
         guidance: {
-          title: "Phase 1: Static Awareness Only",
+          title: "About This Information",
           instructions: ["RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation."]
         },
         availableActions: [],
