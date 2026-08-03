@@ -168,6 +168,7 @@ export default function LiveMapPage() {
       {isEmergencyModeActive && (
         <GuidedEmergencyMode
           awarenessData={observationData}
+          rawPosition={rawPosition}
           onClose={() => setIsEmergencyModeActive(false)}
         />
       )}

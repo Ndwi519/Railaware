@@ -1,14 +1,72 @@
-import React, { useEffect } from 'react';
-import { X, Phone, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Phone, AlertTriangle, MapPin, Copy, Share2, Check } from 'lucide-react';
 
-export default function GuidedEmergencyMode({ awarenessData, onClose }) {
-  // Lock body scroll when emergency mode is active
+export default function GuidedEmergencyMode({ awarenessData, rawPosition, onClose }) {
+  // Lock body scroll and vibrate on mount
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate([200]);
+      } catch (e) {
+        // gracefully degrade
+      }
+    }
+
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, []);
+
+  const [copied, setCopied] = useState(false);
+  const lat = rawPosition ? rawPosition[0].toFixed(5) : null;
+  const lng = rawPosition ? rawPosition[1].toFixed(5) : null;
+
+  const nearestStation = awarenessData?.awareness?.nearestStation;
+  let nearestStationText = null;
+  if (nearestStation && nearestStation.name) {
+    nearestStationText = `Nearest station: ${nearestStation.name}, approximately ${Math.round(nearestStation.distanceMetres)}m away.`;
+  }
+
+  const handleCopyLocation = async () => {
+    if (!lat || !lng) return;
+    try {
+      await navigator.clipboard.writeText(`${lat}, ${lng}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error("Clipboard copy failed", e);
+    }
+  };
+
+  const handleShareLocation = async () => {
+    if (!lat || !lng) return;
+    
+    let text = `My location: ${lat}, ${lng}`;
+    if (nearestStationText) {
+      text += `\n${nearestStationText}`;
+    }
+    text += `\n\n(Note: Shared via RailAware. This app does not provide live train tracking.)`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Emergency Location',
+          text: text,
+        });
+      } catch (e) {
+        // Fallback to copy if user didn't explicitly abort the share sheet
+        if (e.name !== 'AbortError') {
+          handleCopyLocation();
+        }
+      }
+    } else {
+      // Fallback if Web Share API is not supported
+      handleCopyLocation();
+    }
+  };
+
 
   let nearestTrackText = 'Locating nearest track...';
   if (awarenessData?.awareness?.nearbyTracks?.length > 0) {
@@ -43,6 +101,41 @@ export default function GuidedEmergencyMode({ awarenessData, onClose }) {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full space-y-12">
+        
+        {/* Exact Location & Sharing */}
+        <div className="w-full bg-slate-900 border border-slate-700 p-6 rounded-2xl flex flex-col items-center text-center space-y-4">
+          <div className="flex items-center gap-2 text-slate-300">
+            <MapPin className="w-5 h-5 text-red-500" />
+            <span className="text-xl font-mono bg-slate-950 px-3 py-1 rounded">
+              {lat && lng ? `${lat}, ${lng}` : 'Waiting for GPS...'}
+            </span>
+          </div>
+          
+          {nearestStationText && (
+            <p className="text-lg text-slate-400">
+              {nearestStationText}
+            </p>
+          )}
+
+          <div className="flex gap-4 w-full max-w-md pt-2">
+            <button
+              onClick={handleCopyLocation}
+              disabled={!lat || !lng}
+              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+              {copied ? <Check className="w-5 h-5 text-emerald-500" /> : <Copy className="w-5 h-5" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            <button
+              onClick={handleShareLocation}
+              disabled={!lat || !lng}
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+              <Share2 className="w-5 h-5" />
+              Share
+            </button>
+          </div>
+        </div>
         {/* Distances Section */}
         <div className="bg-slate-800 p-8 rounded-2xl w-full text-center space-y-4 shadow-xl border border-slate-700">
           <p className="text-2xl lg:text-3xl font-medium text-slate-100">

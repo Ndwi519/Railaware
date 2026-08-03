@@ -26,6 +26,18 @@ export default function DeveloperDiagnosticsPanel({
     }
   }, [simulatedPosition]);
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // Ctrl + Shift + D to toggle Developer Diagnostics
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [setIsOpen]);
+
   const applyCoordinates = () => {
     const lat = Number(latInput);
     const lng = Number(lngInput);
@@ -70,17 +82,7 @@ export default function DeveloperDiagnosticsPanel({
   if (import.meta.env.PROD) return null;
 
   return (
-    <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="absolute top-4 right-4 z-50 bg-slate-900/90 text-white p-2.5 rounded-xl shadow-lg hover:bg-slate-800 backdrop-blur transition-all"
-        title="Developer Diagnostics"
-        aria-label="Developer Diagnostics"
-      >
-        <Settings className="w-5 h-5" />
-      </button>
-
-      {isOpen && (
+    <>      {isOpen && (
         <div className="fixed inset-y-0 right-0 w-96 bg-slate-900 shadow-2xl z-[100] text-slate-300 font-mono text-xs overflow-y-auto flex flex-col">
           <div className="p-4 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900/95 backdrop-blur z-10">
             <h2 className="text-white font-bold text-sm flex items-center gap-2">
@@ -188,6 +190,9 @@ export default function DeveloperDiagnosticsPanel({
                     <Info className="w-3 h-3" /> Confidence & Context
                   </h3>
                   <div className="bg-slate-950 p-2 rounded border border-slate-800 text-slate-300">
+                    <p className="text-[10px] text-slate-400 mb-3 border-b border-slate-800 pb-2 italic">
+                      These signals are intentionally unassessed in the current version — see the project's documented decision not to synthesize a misleading combined confidence score.
+                    </p>
                     {/* Confidence Badges */}
                     <div className="grid grid-cols-1 gap-2 mb-3">
                       <div className="flex justify-between items-center text-xs">
