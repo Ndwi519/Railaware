@@ -192,7 +192,22 @@ async function startServer() {
         res.json(result);
       } catch (error) {
         log.error('Awareness pipeline failed', error);
-        res.status(500).json({ error: 'Internal server error' });
+
+        res.json({
+          observation: {},
+          confidence: {
+            level: 'UNKNOWN',
+            reasons: ['Railway infrastructure provider temporarily unavailable']
+          },
+          awareness: {},
+          assistance: {
+            emergencyMode: false
+          },
+          trains: null,
+          error: null,
+          degraded: true,
+          disclaimer: 'RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation. Always obey local safety signals.'
+        });
       }
     });
 
