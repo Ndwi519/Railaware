@@ -25,6 +25,38 @@ async function startServer() {
     const app = express();
 
     app.set('trust proxy', 1);
+    // TEMPORARY: remove after diagnosing Render -> Overpass connectivity
+    app.get('/debug/overpass-check', async (req, res) => {
+        const start = Date.now();
+
+        try {
+            const response = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'data=[out:json];node(1);out;',
+                signal: AbortSignal.timeout(15000)
+            });
+
+            const body = await response.text();
+
+            res.json({
+                ok: true,
+                status: response.status,
+                durationMs: Date.now() - start,
+                bodyPreview: body.slice(0, 200)
+            });
+        } catch (error) {
+            res.status(500).json({
+                ok: false,
+                durationMs: Date.now() - start,
+                errorName: error.name,
+                errorMessage: error.message,
+                errorCause: error.cause
+            });
+        }
+    });
 
     app.use(helmet({
       contentSecurityPolicy: {
