@@ -51,7 +51,8 @@ async function startServer() {
                 method: 'POST',
                 body: 'data=[out:json];node(1);out;',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'User-Agent': 'RailAware/1.0 (Production)'
                 },
                 signal: AbortSignal.timeout(15000)
             });
