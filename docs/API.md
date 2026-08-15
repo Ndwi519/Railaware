@@ -45,7 +45,7 @@ The core spatial engine that resolves physical track infrastructure around a use
 
 - **Method**: `GET`
 - **Path**: `/api/v1/schedule/corridor/:id`
-- **Description**: Returns published static timetable schedules for a given corridor ID (resolved via `/api/v1/awareness`).
+- **Description**: Returns published static timetable schedules using a topological branch identifier (resolved via `nearbyTracks[].id` in `/api/v1/awareness`). Note: Phase 1 exposes no logical corridor identifier; `discoveryContext.corridor.id` is intentionally absent.
 - **Safety Note**: This endpoint strictly provides scheduled intention. It explicitly **never implies live position** or realtime delays. If a train is scheduled at 10:00 AM, it guarantees only that it is published to arrive at that time, not that the physical track is clear or occupied.
 
 ### Example Response

@@ -1,16 +1,18 @@
 # RailAware Deployment Guide
 
-## Production Deployment (Docker Compose)
+## Production Deployment (Render)
 
-The easiest way to deploy RailAware is using the provided Docker Compose file.
+The project is deployed exclusively through Render using Render's native Node.js and Static Site runtimes.
 
-1. Clone repository to host.
-2. Create \`.env\` based on \`.env.example\` and provide production keys.
-3. Run \`docker-compose up -d --build\`.
-
-This will start:
-- Express API on port 3001
-- Next.js Web App on port 3000
+1. Connect the repository to your Render account.
+2. **Backend**: Create a new Web Service using the Node.js runtime.
+   - Build Command: `npm install`
+   - Start Command: `npm run start --prefix server`
+   - Set environment variables based on `server/.env.example`.
+3. **Frontend**: Create a new Static Site.
+   - Build Command: `npm run build --prefix client`
+   - Publish Directory: `client/dist`
+   - Configure Rewrite rules for SPA routing.
 
 ## Environment Variables
-Ensure all variables defined in \`packages/config/src/env.ts\` are provided.
+Ensure all required variables are securely provisioned in the Render dashboard.

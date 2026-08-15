@@ -1,5 +1,63 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  --color-rail-panel: #FFFFFF;
+  --color-rail-panel-soft: #F7F9FC;
+  --color-rail-border: #D7E0EA;
+  --color-rail-divider: #DCE4EC;
+
+  --color-rail-text: #20324A;
+  --color-rail-text-secondary: #50647D;
+  --color-rail-text-muted: #687B91;
+
+  --color-rail-blue: #1674C8;
+  --color-rail-blue-soft: #EAF4FF;
+
+  --color-rail-purple: #8B5CF6;
+  --color-rail-purple-soft: #F1EAFE;
+
+  --color-rail-orange: #F97316;
+  --color-rail-orange-soft: #FFF0E6;
+
+  --color-rail-green: #22A06B;
+  --color-rail-green-soft: #E2F5EA;
+  --color-rail-green-text: #17643A;
+
+  --color-rail-amber-soft: #FFF8E8;
+  --color-rail-amber-border: #F1D58A;
+  --color-rail-amber-text: #795B13;
+}
+
+body {
+  font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+@media (min-width: 1024px) {
+  .hide-on-desktop {
+    display: none !important;
+  }
+  .show-on-desktop {
+    display: block !important;
+  }
+  .flex-on-desktop {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .show-on-desktop {
+    display: none !important;
+  }
+  .flex-on-desktop {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .cta-tablet-shifted {
+    left: 352px !important;
+    right: 16px !important;
+    width: auto !important;
+    translate: 0 !important;
+  }
 }

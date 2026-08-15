@@ -28,34 +28,45 @@ class CorridorResolver {
    * @param {number} radiusMetres - Search radius
    * @returns {Object} { assembledCorridors, nearestStation }
    */
-  async resolveAllClusters(location, radiusMetres) {
+  async resolveAllClusters(location, optionsOrRadius) {
     const tFetchStart = performance.now();
-    const { corridors, stations, elements } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
+    const { corridors, stations, elements, _isCached, _freshness, _cacheAgeSeconds } = await this.overpass.fetchNearbyRailways(location, optionsOrRadius);
     const tFetchEnd = performance.now();
-    
+
     let nearestStation = null;
     let minStationDist = Infinity;
     if (stations && stations.length > 0) {
       const { haversineMetres } = require('../calculations/haversine.js');
       for (const station of stations) {
-        if (station.lat && station.lon) {
-          const dist = haversineMetres(location.lat, location.lng, station.lat, station.lon);
+        if (
+          station.feature &&
+          station.feature.lat != null &&
+          station.feature.lng != null
+        ) {
+          const dist = haversineMetres(location.lat, location.lng, station.feature.lat, station.feature.lng);
           if (dist < minStationDist) {
             minStationDist = dist;
-            nearestStation = { ...station, distanceMetres: Math.round(dist) };
+            nearestStation = {
+              ...station,
+              id: station.feature.station.code,
+              name: station.feature.station.name || station.feature.station.code,
+              distanceMetres: Math.round(dist)
+            };
           }
         }
       }
     }
 
     let nearestCrossing = null;
-    let minCrossingDist = radiusMetres;
+    const trackRadius = typeof optionsOrRadius === 'object' ? optionsOrRadius.track : optionsOrRadius;
+    const crossingRadius = typeof optionsOrRadius === 'object' ? optionsOrRadius.crossing : trackRadius;
+    let minCrossingDist = crossingRadius;
 
     if (elements) {
       const { haversineMetres } = require('../calculations/haversine.js');
       for (const el of elements) {
         if (el.type === 'node' && el.tags && (el.tags.railway === 'crossing' || el.tags.railway === 'level_crossing')) {
-          if (el.lat && el.lon) {
+          if (el.lat != null && el.lon != null) {
             const dist = haversineMetres(location.lat, location.lng, el.lat, el.lon);
             if (dist <= minCrossingDist) {
               minCrossingDist = dist;
@@ -72,22 +83,22 @@ class CorridorResolver {
     }
 
     if (!elements || elements.length === 0) {
-      return { assembledCorridors: [], nearestStation, nearestCrossing };
+      return { assembledCorridors: [], nearestStation, nearestCrossing, _isCached, _freshness, _cacheAgeSeconds };
     }
 
     const tPreFilterStart = performance.now();
     const { nodeCoords, ways } = _corridorGraph.indexOverpassElements(elements);
-    
+
     // Proximity Pre-Filter: Filter ways BEFORE clustering
     const { projectPointOntoCorridor } = require('../calculations/projection.js');
     const filteredWays = new Map();
-    
+
     for (const [wayId, way] of ways.entries()) {
       if (way && way.nodeIds.length >= 2) {
         const points = way.nodeIds.map(id => nodeCoords.get(id)).filter(Boolean);
         if (points.length >= 2) {
           const projection = projectPointOntoCorridor(location, points);
-          if (projection && projection.crossTrackDistanceMetres <= radiusMetres) {
+          if (projection && projection.crossTrackDistanceMetres <= trackRadius) {
             filteredWays.set(wayId, way);
           }
         }
@@ -97,10 +108,10 @@ class CorridorResolver {
 
     const tGraphStart = performance.now();
     const graph = _corridorGraph.buildWayConnectivityGraph(filteredWays);
-    
+
     const clusters = [];
     const visitedWayIds = new Set();
-    
+
     for (const wayId of filteredWays.keys()) {
       if (!visitedWayIds.has(wayId)) {
         const connectedComponent = _corridorGraph.findConnectedWays(wayId, graph);
@@ -137,7 +148,7 @@ class CorridorResolver {
     }
     const tAssemblyEnd = performance.now();
 
-    return { assembledCorridors, nearestStation, nearestCrossing, stations };
+    return { assembledCorridors, nearestStation, nearestCrossing, stations, _isCached, _freshness, _cacheAgeSeconds };
   }
 
   /**
@@ -145,21 +156,26 @@ class CorridorResolver {
    * Strictly adheres to the Version 1.1 Architecture Amendment boundaries.
    *
    * @param {Object} location - GPS location {lat, lng}
-   * @param {number} radiusMetres - Search radius
+   * @param {number|Object} optionsOrRadius - Search radius or object with decoupled radii
    */
-  async resolveNearest(location, radiusMetres) {
+  async resolveNearest(location, optionsOrRadius) {
     // 1. Data Fetch
     // Retrieves raw spatial infrastructure data and cached stations.
     const {
       corridors,
       stations,
-      elements
-    } = await this.overpass.fetchNearbyRailways(location, radiusMetres);
+      elements,
+      _isCached,
+      _freshness,
+      _cacheAgeSeconds
+    } = await this.overpass.fetchNearbyRailways(location, optionsOrRadius);
+
+    const trackRadius = typeof optionsOrRadius === 'object' ? optionsOrRadius.track : optionsOrRadius;
 
     if (corridors.length === 0) {
       log.info('No corridors found near location', {
         location,
-        radiusMetres
+        trackRadius
       });
       return null;
     }
@@ -215,7 +231,10 @@ class CorridorResolver {
       nearestCorridor: response,
       assembledCorridor: assembledCorridor,
       projectionResult: projection,
-      stationsOutput: stationsOutput
+      stationsOutput: stationsOutput,
+      _isCached,
+      _freshness,
+      _cacheAgeSeconds
     });
   }
 }

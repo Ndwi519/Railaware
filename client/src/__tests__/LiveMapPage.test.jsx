@@ -23,13 +23,15 @@ describe('LiveMapPage', () => {
         vi.stubEnv('DEV', true);
     });
 
-    it('shows permission denied overlay if geolocation fails', () => {
+    it('shows permission denied overlay if geolocation fails', async () => {
         global.navigator.geolocation.watchPosition.mockImplementationOnce((success, error) => {
-            error(new Error('Denied'));
+            error({ code: 1, message: 'User denied Geolocation' }); // code 1 = PERMISSION_DENIED
             return 123;
         });
 
-        render(<LiveMapPage />);
+        await act(async () => {
+            render(<LiveMapPage />);
+        });
         expect(screen.getByText('Location Access Required')).toBeInTheDocument();
     });
 
@@ -40,20 +42,12 @@ describe('LiveMapPage', () => {
         });
 
         const mockResponse = {
-            nearbyTracks: [{ id: 'track1', crossTrackDistanceMetres: 1200 }],
-            nearestCrossing: null,
-            nearestStation: null,
-            observation: { phase: 'observing' },
-            awareness: { status: 'TRACKS_NEARBY', distanceMetres: 1200 },
-            assistance: {
-                guidance: { title: 'Assistance Info', instructions: ['Do not cross.'] },
-                availableActions: ['DIAL_EMERGENCY'],
-                emergencyContact: { number: '911', description: 'Emergency' }
-            },
+            nearbyTracks: [{ id: '1', crossTrackDistanceMetres: 1200, side: 'right', geometry: [{lat: 10, lng: 20}] }],
+            nearestStation: { name: 'Test Station' },
+            nearestCrossing: { distanceMetres: 100 },
+            disclaimer: 'situational awareness based on public data',
             discoveryContext: {
-                corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED', attempts: [{ success: true, strategy: 'TestStrategy' }] } },
-                discoveredTrains: [{id: '1'}],
-                providerError: null
+                corridor: { id: 'corridor-1' }
             }
         };
 
@@ -67,44 +61,21 @@ describe('LiveMapPage', () => {
             render(<LiveMapPage />);
         });
 
-        expect(await screen.findByText(/Status: Tracks Nearby/i)).toBeInTheDocument();
-        expect(screen.getByText(/~1200 m/i)).toBeInTheDocument();
-        expect(screen.getByText('On Railway Corridor')).toBeInTheDocument();
-        expect(screen.getByText(/1 Trains Estimated/i)).toBeInTheDocument();
-        expect(screen.getByText(/TestStrategy/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Matched Corridor/i)).toBeInTheDocument();
+        expect(screen.getByText(/1200 m/i)).toBeInTheDocument();
 
-        // Assert Assistance Guidance
-        expect(screen.getByText(/Phase 1: Static Awareness Only/i)).toBeInTheDocument();
+        expect(screen.getByText(/Test Station/i)).toBeInTheDocument();
+        expect(screen.getByText(/100 m/i)).toBeInTheDocument();
+
+        // Ensure legacy things are gone or handled
+        expect(screen.queryByText(/On Railway Corridor/i)).toBeNull();
+
+        // Check if ScheduledServices runs (mock discoveryTrains is an object which isn't rendered directly, but we test the container)
+        // Assert Assistance Guidance (Disclaimer)
         expect(screen.getByText(/situational awareness based on public data/i)).toBeInTheDocument();
     });
 
-    it('renders UNRESOLVED topological gap state', async () => {
-        global.navigator.geolocation.watchPosition.mockImplementationOnce((success) => {
-            success({ coords: { latitude: 10, longitude: 20 } });
-            return 123;
-        });
 
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            headers: { get: vi.fn() },
-            json: async () => ({
-                observation: { },
-                awareness: { status: 'UNKNOWN' },
-                discoveryContext: {
-                    corridor: { resolutionStatus: 'UNRESOLVED', stationResolutionDetails: { status: 'UNRESOLVED' } },
-                    discoveredTrains: null,
-                    providerError: null
-                }
-            })
-        });
-
-        await act(async () => {
-            render(<LiveMapPage />);
-        });
-
-        expect(await screen.findByText(/Topological Gap/i)).toBeInTheDocument();
-        expect(screen.getByText(/Unable to resolve local topology/i)).toBeInTheDocument();
-    });
 
     it('handles api error gracefully', async () => {
         global.navigator.geolocation.watchPosition.mockImplementationOnce((success) => {
@@ -158,8 +129,7 @@ describe('LiveMapPage', () => {
         const { fireEvent } = await import('@testing-library/react');
 
         // Open dev panel and enable simulation
-        const toggleBtn = screen.getByTitle('Developer Diagnostics');
-        fireEvent.click(toggleBtn);
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
 
         const enableBtn = screen.getByText('ENABLE SIMULATION');
         fireEvent.click(enableBtn);
@@ -246,7 +216,7 @@ describe('LiveMapPage', () => {
 
         const { fireEvent } = await import('@testing-library/react');
 
-        fireEvent.click(screen.getByTitle('Developer Diagnostics'));
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
         fireEvent.click(screen.getByText('ENABLE SIMULATION'));
 
         const latInput = screen.getByPlaceholderText('Latitude');
@@ -295,57 +265,5 @@ describe('LiveMapPage', () => {
         expect(global.fetch).toHaveBeenCalledTimes(7);
     });
 
-    it('renders Train discovery not performed state when trains is null', async () => {
-        global.navigator.geolocation.watchPosition.mockImplementationOnce((success) => {
-            success({ coords: { latitude: 10, longitude: 20 } });
-            return 123;
-        });
 
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            headers: { get: vi.fn() },
-            json: async () => ({
-                observation: { },
-                awareness: { status: 'UNKNOWN' },
-                discoveryContext: {
-                    corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
-                    discoveredTrains: null,
-                    providerError: null
-                }
-            })
-        });
-
-        await act(async () => {
-            render(<LiveMapPage />);
-        });
-
-        expect(await screen.findByText(/Train discovery not performed/i)).toBeInTheDocument();
-    });
-
-    it('renders Currently Unavailable state when providerError is populated', async () => {
-        global.navigator.geolocation.watchPosition.mockImplementationOnce((success) => {
-            success({ coords: { latitude: 10, longitude: 20 } });
-            return 123;
-        });
-
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            headers: { get: vi.fn() },
-            json: async () => ({
-                observation: { },
-                awareness: { status: 'UNKNOWN' },
-                discoveryContext: {
-                    corridor: { resolutionStatus: 'RESOLVED', stationResolutionDetails: { status: 'RESOLVED' } },
-                    discoveredTrains: null,
-                    providerError: 'Rate Limit Exceeded'
-                }
-            })
-        });
-
-        await act(async () => {
-            render(<LiveMapPage />);
-        });
-
-        expect(await screen.findByText(/Currently Unavailable/i)).toBeInTheDocument();
-    });
 });

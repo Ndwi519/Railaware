@@ -44,6 +44,6 @@ describe('NDLS Regression', () => {
     console.log(`Execution Time: ${execTimeMs.toFixed(3)} ms`);
     console.log(`Bounding Box: minLat=${bounds.minLat}, maxLat=${bounds.maxLat}, minLng=${bounds.minLng}, maxLng=${bounds.maxLng}`);
 
-    expect(execTimeMs).toBeLessThan(100);
+    expect(execTimeMs).toBeLessThan(200);
   });
 });

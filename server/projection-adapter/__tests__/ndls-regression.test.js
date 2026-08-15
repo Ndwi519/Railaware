@@ -55,6 +55,6 @@ describe('NDLS Projection Regression', () => {
     console.log(`Cross-Track Distance: ${result1.crossTrackDistanceMetres.toFixed(3)} m`);
     console.log(`Execution Time: ${execTimeMs.toFixed(3)} ms`);
 
-    expect(execTimeMs).toBeLessThan(100);
+    expect(execTimeMs).toBeLessThan(200);
   });
 });

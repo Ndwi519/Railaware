@@ -10,7 +10,7 @@ const RailAwareAwarenessEngine = require('../../awareness-engine/RailAwareAwaren
 const RailAwareAssistanceEngine = require('../../assistance-engine/RailAwareAssistanceEngine.js');
 
 // Legacy infrastructural engines (required by TrainDiscoveryService)
-const { OverpassClient } = require('../../corridor-resolver/overpass.js');
+const { SpatialProviderManager } = require('../../corridor-resolver/SpatialProviderManager.js');
 const { CorridorResolver } = require('../../corridor-resolver/resolver.js');
 const { RailRadarProvider } = require('../../provider/railradar.js');
 const { StationResolutionEngine } = require('../../station-resolution-engine/index.js');
@@ -25,10 +25,10 @@ const { DEFAULT_THRESHOLDS, GEOMETRIC_PROJECTION_CONSTRAINTS } = require('../../
 function createRailAwareService(config) {
 
   // 1. Initialize Legacy Infrastructure
-  const overpassClient = config.overpassClient || new OverpassClient(config.overpass);
+  const overpassClient = config.overpassClient || new SpatialProviderManager(config);
   const corridorResolver = new CorridorResolver(overpassClient);
   const railRadarProvider = new RailRadarProvider(config);
-  
+
   const stationResolutionEngine = new StationResolutionEngine([
     new OsmRouteRelationsStrategy(),
     new OsmRelationMembersStrategy(),
@@ -45,23 +45,23 @@ function createRailAwareService(config) {
   // 2. Initialize Domain Engines
   const interpreter = new RailRadarProviderInterpreter();
   const { TrajectoryManager } = require('../services/TrajectoryManager.js');
-  const store = new InMemoryObservationStore(100); 
+  const store = new InMemoryObservationStore(100);
   const confidenceEngine = new RailAwareConfidenceEngine();
   const awarenessEngine = new RailAwareAwarenessEngine();
   const assistanceEngine = new RailAwareAssistanceEngine(config);
   const trajectoryManager = new TrajectoryManager();
-  
+
   // 3. Initialize Strategy Manager and Register Strategies
   const TrainDiscoveryStrategyManager = require('../services/TrainDiscoveryStrategyManager.js');
   const RailRadarStrategy = require('../services/strategies/RailRadarStrategy.js');
   const RailRadarDiscoveryMapper = require('../mappers/RailRadarDiscoveryMapper.js');
-  
+
   const strategyManager = new TrainDiscoveryStrategyManager();
-  
+
   // Register strategies explicitly with priorities
   const railRadarStrategy = new RailRadarStrategy(railRadarProvider, config.railradarMinEvidence);
   strategyManager.register(railRadarStrategy, 10);
-  
+
   // Prepare discovery mappers indexed by strategy name
   const discoveryMappers = {
     [railRadarStrategy.id()]: new RailRadarDiscoveryMapper()

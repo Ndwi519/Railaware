@@ -7,7 +7,7 @@ const scheduleCache = require('./ScheduleCorridorCache.js');
 
 /**
  * Spatial Awareness Service
- * 
+ *
  * Provides a stateless, single-shot snapshot query for nearby spatial infrastructure.
  * Fully decoupled from session tracking, continuous tracking, or temporal hysteresis.
  * Designed purely to satisfy the Phase 1 static awareness requirements.
@@ -16,6 +16,8 @@ class SpatialAwarenessService {
     constructor(overpassClient, thresholds) {
         this.resolver = new CorridorResolver(overpassClient);
         this.radiusMetres = thresholds.DEFAULT_THRESHOLDS.SPATIAL_AWARENESS_RADIUS_METRES || 300;
+        this.stationRadius = thresholds.DEFAULT_THRESHOLDS.SPATIAL_AWARENESS_STATION_RADIUS_METRES || 2000;
+        this.crossingRadius = thresholds.DEFAULT_THRESHOLDS.SPATIAL_AWARENESS_CROSSING_RADIUS_METRES || 1000;
     }
 
     /**
@@ -25,14 +27,22 @@ class SpatialAwarenessService {
      * @returns {Object} Phase 1 Spatial Awareness Result
      */
     async getNearbyAwareness(location) {
-        const { assembledCorridors, nearestStation, nearestCrossing, stations } = await this.resolver.resolveAllClusters(location, this.radiusMetres);
+        const radii = {
+            track: this.radiusMetres,
+            station: this.stationRadius,
+            crossing: this.crossingRadius
+        };
+        const { assembledCorridors, nearestStation, nearestCrossing, stations, _isCached, _freshness, _cacheAgeSeconds } = await this.resolver.resolveAllClusters(location, radii);
 
         if (assembledCorridors.length === 0) {
             return {
                 nearbyTracks: [],
                 nearestCrossing,
                 nearestStation,
-                disclaimer: "No railway infrastructure detected within range. Ensure you are near a track."
+                disclaimer: "No railway infrastructure detected within range. Ensure you are near a track.",
+                _isCached,
+                _freshness,
+                _cacheAgeSeconds
             };
         }
 
@@ -45,7 +55,7 @@ class SpatialAwarenessService {
 
             for (const candidate of clusterCandidates) {
                 if (candidate.result.crossTrackDistanceMetres <= trackListRadius) {
-                    // Because branchId contains global OSM node IDs, they are guaranteed to not collide 
+                    // Because branchId contains global OSM node IDs, they are guaranteed to not collide
                     // across different disjoint graph clusters.
                     const branchId = assembledCorridor.getBranchId(candidate.evaluationOrder);
                     if (!branchMap.has(branchId) || candidate.result.crossTrackDistanceMetres < branchMap.get(branchId).result.crossTrackDistanceMetres) {
@@ -65,7 +75,6 @@ class SpatialAwarenessService {
             return {
                 id: branchId,
                 crossTrackDistanceMetres: candidate.result.crossTrackDistanceMetres,
-                side: "unknown", // Phase 2: Directional inference
                 geometry,
                 assembledCorridor: candidate.assembledCorridor, // internal, used for station matching
                 candidate // internal
@@ -85,7 +94,7 @@ class SpatialAwarenessService {
                 // matchStationsToCorridor returns them sorted along track
                 // The candidate contains user projection details
                 const userDist = closest.candidate.result.alongTrackDistanceMetres;
-                
+
                 let prev = null;
                 let next = null;
                 for (let i = 0; i < matched.length; i++) {
@@ -96,7 +105,7 @@ class SpatialAwarenessService {
                         break;
                     }
                 }
-                
+
                 if (prev && next) {
                     scheduleCache.set(closest.id, { from: prev.code, to: next.code });
                 }
@@ -107,15 +116,17 @@ class SpatialAwarenessService {
         const cleanTracks = nearbyTracks.map(t => ({
             id: t.id,
             crossTrackDistanceMetres: t.crossTrackDistanceMetres,
-            side: t.side,
             geometry: t.geometry
         }));
 
         return {
             nearbyTracks: cleanTracks,
-            nearestCrossing, 
+            nearestCrossing,
             nearestStation,
-            disclaimer: "RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation. Always obey local safety signals."
+            disclaimer: "RailAware provides situational awareness based on public data. It is NOT a substitute for visual confirmation. Always obey local safety signals.",
+            _isCached,
+            _freshness,
+            _cacheAgeSeconds
         };
     }
 }

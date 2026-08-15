@@ -38,7 +38,7 @@ export function useLocationTracking(isSimulating, simulatedPosition) {
 
   useEffect(() => {
     if (isSimulating && simulatedPosition) {
-      console.log("[Simulated GPS Override]", simulatedPosition[0], simulatedPosition[1]);
+
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
@@ -60,7 +60,7 @@ export function useLocationTracking(isSimulating, simulatedPosition) {
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         if (!isSimulating) {
-          console.log("[GPS]", pos.coords.latitude, pos.coords.longitude);
+
           setRawPosition((prevPos) => {
             const newPos = [pos.coords.latitude, pos.coords.longitude];
             if (prevPos && calculateDistance(prevPos, newPos) < 0.5) return prevPos;

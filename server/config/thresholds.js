@@ -19,15 +19,18 @@ const DEFAULT_THRESHOLDS = exports.DEFAULT_THRESHOLDS = {
   // 30 seconds
   providerTimeoutMs: 10_000,
   bearingVarianceFailDegrees: 45,
-  STATION_CORRIDOR_MATCH_DISTANCE_METRES: 175 // Phase 4 provisional calibration (NDLS measured cross-track ≈146.7m)
+  STATION_CORRIDOR_MATCH_DISTANCE_METRES: 175, // Phase 4 provisional calibration (NDLS measured cross-track ≈146.7m)
+  SPATIAL_AWARENESS_RADIUS_METRES: 300,
+  SPATIAL_AWARENESS_STATION_RADIUS_METRES: 300,
+  SPATIAL_AWARENESS_CROSSING_RADIUS_METRES: 1000
 };
 
 /**
  * Phase 3: Geometric Projection Constraints
- * 
+ *
  * ADR-011 mandates that these admissibility constraints govern the
- * geometric projection strategy. They are intentionally isolated and 
- * uncalibrated (undefined) in Phase 3 to prevent the algorithm from 
+ * geometric projection strategy. They are intentionally isolated and
+ * uncalibrated (undefined) in Phase 3 to prevent the algorithm from
  * silently assuming guessed defaults. Calibration is deferred to Phase 4.
  */
 const GEOMETRIC_PROJECTION_CONSTRAINTS = exports.GEOMETRIC_PROJECTION_CONSTRAINTS = {

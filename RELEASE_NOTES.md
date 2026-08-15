@@ -1,5 +1,20 @@
 # RailAware Release Notes
 
+## Version: v1.0.1
+**Release Status:** Release Candidate (Awaiting Physical Device Validation)
+
+### Summary
+v1.0.1 completes the final UI/UX polish and repository cleanup, finalizing Phase 1 release preparations. The update establishes a polished, consumer-ready interface while rigorously maintaining all verified architectural boundaries and safety constraints.
+
+### Major Changes
+- **UX Layout Redesign:** Transitioned from an internal dashboard layout to a modern absolute map overlay layout, ensuring the Awareness Sidebar floats naturally above the map on desktop environments.
+- **Emergency Mode Scannability:** Streamlined typography and spacing within GuidedEmergencyMode to reduce visual density under stress, prioritizing clear hierarchy and keeping the emergency call button prominently accessible.
+- **Visual Consistency:** Standardized the typography stack across the application (preferring Inter/system-ui) without relying on external CDNs.
+- **Honesty-First Transparency:** Added a permanent transparency statement in the sidebar to continually reinforce that the app relies on static railway geometry and GPS, not live train tracking.
+- **Architectural Formalization:** Explicitly codified the `.raw` payload as a development-only artifact and documented the topological `branchId` divergence in scheduled services.
+
+---
+
 ## Version: v0.2.0-phase2
 **Release Status:** Approved for Release
 

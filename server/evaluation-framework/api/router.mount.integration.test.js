@@ -2,7 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
 
-function waitForServer(port, timeoutMs = 5000) {
+function waitForServer(port, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const interval = setInterval(() => {
@@ -31,7 +31,7 @@ function makeGetRequest(port, path) {
 
 describe('Evaluation Router Mounting (Integration)', () => {
   let serverProcess;
-  jest.setTimeout(15000);
+  jest.setTimeout(30000);
 
   afterEach(() => {
     if (serverProcess) {

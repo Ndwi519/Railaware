@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Activity, Server, MapPin, Info } from 'lucide-react';
+import { X, Activity, Server, MapPin, Info } from 'lucide-react';
 
-export default function DeveloperDiagnosticsPanel({ 
-  isSimulating, 
-  setIsSimulating, 
+export default function DeveloperDiagnosticsPanel({
+  isSimulating,
+  setIsSimulating,
   simulatedPosition,
   observationData,
   observationStatus,
@@ -41,7 +41,7 @@ export default function DeveloperDiagnosticsPanel({
   const applyCoordinates = () => {
     const lat = Number(latInput);
     const lng = Number(lngInput);
-    console.log("[Apply Button]", lat, lng);
+
 
     if (latInput.trim() === '' || lngInput.trim() === '') {
       setValidationError("Coordinates cannot be empty.");
@@ -112,9 +112,9 @@ export default function DeveloperDiagnosticsPanel({
                 <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3">
                   <p className="text-slate-500 text-xs">Click map or enter GPS coordinates manually</p>
                   <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Latitude" 
+                    <input
+                      type="text"
+                      placeholder="Latitude"
                       className="w-full bg-slate-900 border border-slate-700 p-1.5 rounded text-slate-300"
                       value={latInput}
                       onKeyDown={handleKeyDown}
@@ -123,9 +123,9 @@ export default function DeveloperDiagnosticsPanel({
                         if (validationError) setValidationError("");
                       }}
                     />
-                    <input 
-                      type="text" 
-                      placeholder="Longitude" 
+                    <input
+                      type="text"
+                      placeholder="Longitude"
                       className="w-full bg-slate-900 border border-slate-700 p-1.5 rounded text-slate-300"
                       value={lngInput}
                       onKeyDown={handleKeyDown}
@@ -136,13 +136,13 @@ export default function DeveloperDiagnosticsPanel({
                     />
                   </div>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={applyCoordinates}
                       className="flex-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 p-1.5 rounded text-xs font-bold transition-colors"
                     >
                       APPLY COORDINATES
                     </button>
-                    <button 
+                    <button
                       onClick={() => onRefresh && onRefresh()}
                       className="bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 p-1.5 rounded text-xs font-bold transition-colors"
                       title="Force Refresh Observation"
@@ -266,9 +266,9 @@ export default function DeveloperDiagnosticsPanel({
                              <li key={i}>{attempt.strategy}: {attempt.reason}</li>
                           ))}
                         </ul>
-                        
+
                         <div><strong className="text-purple-400">Train Resolution:</strong> {observationData.discoveryContext.strategyDiagnostics?.[0]?.status || 'Unknown'}</div>
-                        
+
                         <div><strong className="text-purple-400">Execution Trace:</strong></div>
                         <div className="space-y-1">
                           {(!observationData.discoveryContext.trace?.stages || observationData.discoveryContext.trace.stages.length === 0) ? <span className="text-[10px] text-slate-500">None</span> : null}
@@ -289,7 +289,7 @@ export default function DeveloperDiagnosticsPanel({
                 </div>
               </div>
             )}
-            
+
             {!observationData && (
               <div className="text-slate-500 italic text-center py-4">Waiting for observation data...</div>
             )}

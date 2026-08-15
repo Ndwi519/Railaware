@@ -1,54 +1,17 @@
-# RailAware v1.0.0 Release Report
+# RailAware v1.0.0
 
-## 1. System Overview
-RailAware is a resilient, real-time railway safety application designed to detect approaching trains based on a user's geographical proximity to railway corridors. Built entirely on evidence-based deterministic architecture, the platform guarantees that safety is never inferred, assumed, or communicated by omission. 
+RailAware v1.0.0 has been frozen for production deployment.
 
-## 2. Architecture Summary
-- **Backend**: Express.js orchestrator wrapping a strict CommonJS Domain Layer.
-- **Frontend**: React + Vite SPA using `useSmoothedLocation` for GPS tracking.
-- **Engine Pipeline**: `TrainDiscoveryService` -> `RailRadarProvider` -> `ProviderInterpreter` -> `ObservationStore` -> `ConfidenceEngine` -> `AwarenessEngine` -> `RailAwareService`.
-- **Infrastructure**: Immutable, single-responsibility, side-effect-free architecture isolating provider translation from analytical logic.
+**PRODUCT CAPABILITY**: RailAware provides geospatial railway situational awareness. It displays railway infrastructure (tracks, stations, crossings) relative to user coordinates. It **does not** detect approaching trains, track live train positions, predict train arrivals, or guarantee track safety.
 
-## 3. Evidence Summary
-The core confidence and awareness thresholds are mathematically justified by Phase 0 empirical testing (`phase0_evidence.zip`), including:
-- **Topology Limits**: Overpass querying strictly limited to 500m bounding.
-- **Staleness Threshold**: Observations > 15 minutes old automatically degrade confidence to `LOW`.
-- **Segment Regression**: Non-monotonic `segmentProgress` triggers fallback `MEDIUM` confidence rather than rejection, matching observed physical realities in the Phase 0 dataset.
+**FINAL RELEASE DECISION**: CONDITIONAL GO
 
-## 4. Provider Limitations
-- **Data Completeness**: RailRadar payloads occasionally omit `previousHalt` or `nextHalt`, rendering topology partially unresolvable.
-- **Latency / API Limits**: Overpass and RailRadar are susceptible to `429 Too Many Requests` and `504 Gateway Timeout` under load.
-- **Geolocation Inaccuracy**: Train tracking is fundamentally limited to the GPS refresh rate of the provider application running on user devices on the trains.
+**PRODUCTION STATUS**:
+- **Application Validation**: VERIFIED (Backend: 463 tests pass. Frontend: 45 assertions pass, zero lint errors, clean build).
+- **Production deployment platform**: Render
+- **Render deployment**: NOT YET COMPLETED (External deployment credentials/access required).
+- **HTTPS**: to be verified after Render deployment.
+- **SECONDARY_OVERPASS_URL**: to be verified after production provisioning.
+- **Frontend Coverage**: UNVERIFIED (Vitest V8 OOM limitation).
 
-## 5. Known Limitations
-- The `InMemoryObservationStore` does not persist historical observations across server restarts or horizontally scaled instances.
-- The `corridorResolver` relies purely on local bounding caching and real-time OSM data; widespread regional OSM outages will paralyze Train Discovery.
-
-## 6. Testing Performed (Sprint 8 Acceptance Test)
-| Test Target | Status | Notes |
-| :--- | :--- | :--- |
-| **Browser Demo (No Railway)** | **COMPLETE** | Evaluated via Chromium Subagent. Location spoofed, Awareness degraded to `UNKNOWN`. |
-| **Browser Demo (Jaipur Junction)** | **COMPLETE** | Evaluated via Chromium Subagent. Location spoofed to `[26.92049, 75.78757]`. Awareness correctly evaluated. |
-| **Failure: Overpass Timeout** | **COMPLETE** | Handled natively. Triggered `UNKNOWN` Awareness with `[Engineering decision] API unavailable` reason displayed in browser UI. |
-| **Failure: Overpass 429** | **COMPLETE** | Handled natively. Downstream awareness fallback behavior verified. |
-| **Failure: RailRadar 429** | **COMPLETE** | Handled natively. Downstream awareness fallback behavior verified. |
-| **Failure: RailRadar Auth** | **COMPLETE** | Evaluated gracefully. |
-| **Failure: Malformed Payload** | **COMPLETE** | Verified via Jest provider tests. |
-| **Release Audit: npm test** | **COMPLETE** | All 219 Jest tests passing cleanly. |
-
-## 7. Release Checklist
-- [x] Phase 0 Frozen & Validated
-- [x] Domain Architecture Implemented
-- [x] E2E Integration Pipeline (Backend) Verified
-- [x] HTTP 500 Failure Trap Validation
-- [x] API Backwards Compatibility Verified
-- [x] Automated Jest Suites Passing
-- [x] Repository Cleaned & Finalized
-
-## 8. Open Issues
-- **Missing Git Tracking**: The workspace root `E:\Railaware` is currently not initialized as a `.git` repository, complicating rollback and CI/CD versioning.
-
-## 9. Future Enhancements
-- **Redis Observation Store**: Migrate `InMemoryObservationStore` to a Redis instance to allow multi-instance horizontal scaling.
-- **Dockerization**: Containerize the Express backend and React frontend into isolated environments to mitigate host environment faults (e.g. `ENOSPC`).
-- **Telemetry Aggregation**: Introduce Datadog or Prometheus logging to monitor Awareness Engine states dynamically in production.
+Please refer to `FINAL_REPORT.md` for the complete evidence-based geographic smoke-test results, safety-language audit, and infrastructure architecture report.

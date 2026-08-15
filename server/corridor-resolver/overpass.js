@@ -29,13 +29,17 @@ class OverpassClient {
   /**
    * Fetches railway infrastructure near the provided GPS location.
    */
-  async fetchNearbyRailways(location, radiusMetres) { 
+  async fetchNearbyRailways(location, optionsOrRadius) {
+    const radiusMetres = typeof optionsOrRadius === 'object' ? optionsOrRadius.track : optionsOrRadius;
+    const stationRadius = typeof optionsOrRadius === 'object' ? optionsOrRadius.station : radiusMetres;
+    const crossingRadius = typeof optionsOrRadius === 'object' ? optionsOrRadius.crossing : radiusMetres;
+
     // Step 3 - Corridor Cache
     // Normalize coordinates using approximately 0.005° snapping.
     // This represents an approximately 500 m grid at Indian latitudes and varies slightly with latitude because longitude degrees shrink with cos(latitude).
     const latKey = Math.round(location.lat / this.config.gridSizeDeg) * this.config.gridSizeDeg;
     const lngKey = Math.round(location.lng / this.config.gridSizeDeg) * this.config.gridSizeDeg;
-    const cacheKey = `${latKey.toFixed(4)},${lngKey.toFixed(4)},${radiusMetres}`;
+    const cacheKey = `${latKey.toFixed(4)},${lngKey.toFixed(4)},${radiusMetres},${stationRadius},${crossingRadius}`;
     const requestId = _nodeCrypto.default.randomUUID();
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -78,8 +82,8 @@ class OverpassClient {
       [out:json][timeout:${Math.floor(this.config.requestTimeoutMs / 1000)}];
       (
         way["railway"="rail"](around:${radiusMetres},${location.lat},${location.lng});
-        node["railway"="station"](around:${radiusMetres},${location.lat},${location.lng});
-        node["railway"~"^(crossing|level_crossing)$"](around:${radiusMetres},${location.lat},${location.lng});
+        node["railway"="station"](around:${stationRadius},${location.lat},${location.lng});
+        node["railway"~"^(crossing|level_crossing)$"](around:${crossingRadius},${location.lat},${location.lng});
       );
       out body;
       >;

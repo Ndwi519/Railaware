@@ -23,8 +23,7 @@ describe('AwarenessService', () => {
       },
       discoveryContext: {
         corridor: null,
-        providerError: false,
-        discoveredTrains: null
+        providerError: false
       },
       assistance: {
         guidance: {

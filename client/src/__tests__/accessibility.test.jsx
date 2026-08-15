@@ -5,7 +5,7 @@ import * as matchers from 'vitest-axe/matchers';
 expect.extend(matchers);
 import LiveMapPage from '../pages/LiveMapPage';
 import DeveloperDiagnosticsPanel from '../components/DeveloperDiagnosticsPanel';
-import EmergencyMode from '../components/EmergencyMode';
+import GuidedEmergencyMode from '../components/GuidedEmergencyMode';
 import React from 'react';
 
 // Mock Leaflet as it doesn't render well in JSDOM
@@ -29,10 +29,10 @@ describe('Accessibility Checks (axe-core)', () => {
 
     it('LiveMapPage denied state should have no a11y violations', async () => {
         global.navigator.geolocation.watchPosition.mockImplementationOnce((success, error) => {
-            error(new Error('Denied'));
+            error({ code: 1, message: 'User denied Geolocation' }); // code 1 = PERMISSION_DENIED
             return 123;
         });
-        
+
         const { container } = render(<LiveMapPage />);
         const results = await axe(container);
         expect(results).toHaveNoViolations();
@@ -40,22 +40,25 @@ describe('Accessibility Checks (axe-core)', () => {
 
     it('DeveloperDiagnosticsPanel should have no a11y violations', async () => {
         const { container } = render(
-            <DeveloperDiagnosticsPanel 
-                isSimulating={true} 
-                setIsSimulating={() => {}} 
-                simulatedPosition={[10, 20]} 
-                observationData={null} 
+            <DeveloperDiagnosticsPanel
+                isSimulating={true}
+                setIsSimulating={() => {}}
+                simulatedPosition={[10, 20]}
+                observationData={null}
             />
         );
         const results = await axe(container);
         expect(results).toHaveNoViolations();
     });
 
-    it('EmergencyMode should have no a11y violations', async () => {
-        const mockObs = {
-            awareness: { status: 'APPROACHING_STATION', distanceMetres: 100 }
-        };
-        const { container } = render(<EmergencyMode observationData={mockObs} />);
+    it('GuidedEmergencyMode should have no a11y violations', async () => {
+        const { container } = render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
         const results = await axe(container);
         expect(results).toHaveNoViolations();
     });

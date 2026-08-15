@@ -64,25 +64,7 @@ class GeometricProjectionStrategy {
     }
 
     // 3. Build the station index
-    console.log("=================================");
-    console.log("RAW STATIONS RECEIVED:", stations.length);
-
-    for (const s of stations) {
-      console.log(s);
-    }
-
-    console.log("=================================");
-    console.log("Stations received:", stations.length);
-
-    stations.forEach((s, i) => {
-      console.log(`Station ${i}:`, JSON.stringify(s, null, 2));
-    });
     const stationIndex = (0, _index.buildCorridorStationIndex)(corridorGeometry, stations);
-    console.log("STATION INDEX LENGTH:", stationIndex.length);
-
-    for (const s of stationIndex) {
-      console.log(s);
-    }
     if (!stationIndex || stationIndex.length < 2) {
       return {
         success: false,

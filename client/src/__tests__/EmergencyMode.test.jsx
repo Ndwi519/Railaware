@@ -1,109 +1,217 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import EmergencyMode from '../components/EmergencyMode';
+import GuidedEmergencyMode from '../components/GuidedEmergencyMode';
 import React from 'react';
 
-describe('EmergencyMode', () => {
-    it('returns null if observationData is missing', () => {
-        const { container } = render(<EmergencyMode observationData={null} />);
-        expect(container.firstChild).toBeNull();
+// GuidedEmergencyMode always renders (it is triggered only when the button in LiveMapPage
+// is pressed; null-guarding is handled at the call-site via conditional rendering).
+// These tests verify the component's own null-safe rendering for its data fields.
+
+describe('GuidedEmergencyMode', () => {
+    it('renders the emergency guidance heading', () => {
+        render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getAllByText(/EMERGENCY/i)[0]).toBeInTheDocument();
     });
 
-    it('returns null if requiresProminentDisplay is false', () => {
-        const data = { awareness: { requiresProminentDisplay: false } };
-        const { container } = render(<EmergencyMode observationData={data} />);
-        expect(container.firstChild).toBeNull();
+    it('shows waiting-for-GPS message when rawPosition is null', () => {
+        render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/Waiting for GPS/i)).toBeInTheDocument();
     });
 
-    it('renders overlay when train requires prominent display', () => {
+    it('shows formatted coordinates when rawPosition is provided', () => {
+        render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={[51.50853, -0.12574]}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/51\.50853/)).toBeInTheDocument();
+    });
+
+    it('renders nearest-track text with valid crossTrackDistanceMetres', () => {
         const data = {
             awareness: {
-                requiresProminentDisplay: true,
-                distanceMetres: 185,
-                direction: 'TOWARDS_END'
-            },
-            confidence: {
-                observationConfidence: 'HIGH',
-                providerReliability: 'MEDIUM',
-                topologyConfidence: 'HIGH'
-            },
-            assistance: {
-                guidance: {
-                    title: 'Train Arriving',
-                    instructions: ['Move away from the platform edge.']
-                }
+                nearbyTracks: [{ crossTrackDistanceMetres: 42 }]
             }
         };
-        render(<EmergencyMode observationData={data} />);
-
-        expect(screen.getByRole('status')).toBeInTheDocument();
-        expect(screen.getByText('Train Arriving')).toBeInTheDocument();
-        expect(screen.getByText('Move away from the platform edge.')).toBeInTheDocument();
-
-        expect(screen.getByText('Observation')).toBeInTheDocument();
-        expect(screen.getByText('Provider')).toBeInTheDocument();
-        expect(screen.getByText('Topology')).toBeInTheDocument();
-
-        const highElements = screen.getAllByText('HIGH');
-        expect(highElements.length).toBe(2);
-        expect(screen.getByText('MEDIUM')).toBeInTheDocument();
-        expect(screen.queryByText(/Call Emergency Services/i)).not.toBeInTheDocument();
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/approximately 42m away/i)).toBeInTheDocument();
     });
 
-    it('renders SOS button when DIAL_EMERGENCY is available', () => {
+    it('renders "distance unknown" when crossTrackDistanceMetres is null', () => {
         const data = {
-            awareness: { requiresProminentDisplay: true },
-            assistance: {
-                guidance: { title: 'Emergency', instructions: [] },
-                availableActions: ['DIAL_EMERGENCY'],
-                emergencyContact: { number: '112', description: 'Emergency Services' }
+            awareness: {
+                nearbyTracks: [{ crossTrackDistanceMetres: null }]
             }
         };
-        render(<EmergencyMode observationData={data} />);
-        const sosButton = screen.getByText('📞 Call Emergency Services');
-        expect(sosButton).toBeInTheDocument();
-        expect(sosButton).toHaveAttribute('href', 'tel:112');
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        // Should not produce NaN; should show 'distance unknown'
+        expect(screen.getAllByText(/distance unknown/i).length).toBeGreaterThanOrEqual(1);
+        expect(screen.queryByText(/NaN/)).toBeNull();
     });
 
-    it('renders correct background for awareness overlay', () => {
+    it('renders nearest-crossing with valid distanceMetres', () => {
         const data = {
-            awareness: { requiresProminentDisplay: true },
-            assistance: {
-                guidance: { title: 'Test', instructions: [] }
+            awareness: {
+                nearestCrossing: { distanceMetres: 300 }
             }
         };
-        const { container } = render(<EmergencyMode observationData={data} />);
-        expect(container.firstChild).toHaveClass('bg-slate-900/95');
-    });
-    it('returns null and logs warning if assistance object is missing', () => {
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const data = {
-            awareness: { requiresProminentDisplay: true }
-            // assistance is missing entirely
-        };
-        const { container } = render(<EmergencyMode observationData={data} />);
-
-        expect(container.firstChild).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledTimes(1);
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('violates the backend API contract'));
-        consoleSpy.mockRestore();
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/Nearest crossing — 300m/i)).toBeInTheDocument();
     });
 
-    it('returns null and logs warning if assistance.guidance is missing', () => {
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('renders "distance unknown" when nearestCrossing.distanceMetres is null', () => {
         const data = {
-            awareness: { requiresProminentDisplay: true },
-            assistance: {
-                availableActions: [],
-                emergencyContact: null
-                // guidance is missing
+            awareness: {
+                nearestCrossing: { distanceMetres: null }
             }
         };
-        const { container } = render(<EmergencyMode observationData={data} />);
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.queryByText(/NaN/)).toBeNull();
+        // The field renders 'distance unknown' for the crossing
+        expect(screen.getAllByText(/distance unknown/i).length).toBeGreaterThanOrEqual(1);
+    });
 
-        expect(container.firstChild).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledTimes(1);
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('violates the backend API contract'));
-        consoleSpy.mockRestore();
+    it('renders nearest-station text with valid distanceMetres', () => {
+        const data = {
+            awareness: {
+                nearestStation: { name: 'Test Station', distanceMetres: 500 }
+            }
+        };
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/Test Station/i)).toBeInTheDocument();
+        expect(screen.getByText(/approximately 500m away/i)).toBeInTheDocument();
+    });
+
+    it('renders "distance unknown" when nearestStation.distanceMetres is null', () => {
+        const data = {
+            awareness: {
+                nearestStation: { name: 'Nowhere Station', distanceMetres: null }
+            }
+        };
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.queryByText(/NaN/)).toBeNull();
+        expect(screen.getByText(/Nowhere Station/i)).toBeInTheDocument();
+        expect(screen.getByText(/distance unknown/i)).toBeInTheDocument();
+    });
+
+    it('calls onClose when the close button is clicked', () => {
+        const onClose = vi.fn();
+        render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={null}
+                onClose={onClose}
+            />
+        );
+        screen.getByLabelText('Close emergency mode').click();
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the emergency call link pointing at tel:112', () => {
+        render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        const callLink = screen.getByText(/Call Emergency Services/i).closest('a');
+        expect(callLink).toHaveAttribute('href', 'tel:112');
+    });
+
+    it('always shows the three static safety instructions', () => {
+        render(
+            <GuidedEmergencyMode
+                awarenessData={null}
+                rawPosition={null}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/Move away from railway tracks immediately/i)).toBeInTheDocument();
+        expect(screen.getByText(/Do not walk along or stand on railway tracks/i)).toBeInTheDocument();
+        expect(screen.getByText(/use a marked public crossing/i)).toBeInTheDocument();
+        expect(screen.getByText(/If You See or Hear a Train/i)).toBeInTheDocument();
+    });
+
+    it('calculates and renders correct bearing to crossing', () => {
+        const data = {
+            awareness: {
+                nearestCrossing: { distanceMetres: 300, lat: 28.6149, lon: 77.2090 } // North of rawPosition
+            }
+        };
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={[28.6139, 77.2090]} // South point
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/Nearest crossing — 300m · north/i)).toBeInTheDocument();
+    });
+
+    it('calculates and renders correct bearing to diagonal crossing', () => {
+        const data = {
+            awareness: {
+                nearestCrossing: { distanceMetres: 300, lat: 28.6149, lon: 77.2100 } // Northeast of rawPosition
+            }
+        };
+        render(
+            <GuidedEmergencyMode
+                awarenessData={data}
+                rawPosition={[28.6139, 77.2090]}
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByText(/Nearest crossing — 300m · northeast/i)).toBeInTheDocument();
     });
 });

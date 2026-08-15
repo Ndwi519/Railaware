@@ -1,128 +1,112 @@
 import React, { useState, useEffect } from 'react';
+import { Calendar, ChevronDown, ChevronUp, AlertCircle, Info, Clock } from 'lucide-react';
 
 /**
  * ScheduledServices Component
  *
  * Fetches and displays published scheduled services for the current corridor.
  * Conceptually independent from live awareness and strictly non-authoritative.
+ *
+ * Architectural Decision: corridorId Naming
+ * The 'corridorId' prop technically receives a topological branch identifier
+ * (e.g., from nearbyTracks[0].id). Renaming this to 'branchId' consistently
+ * across the frontend components, hooks, and backend API endpoints
+ * (/api/v1/schedule/corridor/:id) has been explicitly deferred to prevent
+ * scope creep in this UI polish pass.
  */
 function ScheduledServices({ corridorId }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [status, setStatus] = useState('idle'); // idle, loading, success, error, empty
   const [services, setServices] = useState([]);
-  const [errorReason, setErrorReason] = useState(null);
 
   useEffect(() => {
-    if (!corridorId || !isOpen) return;
-    
-    // Only fetch once when opened, or when corridorId changes while open
-    let isCancelled = false;
+    if (!corridorId) {
+      setStatus('idle');
+      setServices([]);
+      return;
+    }
+
+    // Fetch immediately when corridorId changes to determine card visibility
+    const controller = new AbortController();
     setStatus('loading');
 
-    fetch(`/api/v1/schedule/corridor/${corridorId}`)
+    fetch(`/api/v1/schedule/corridor/${corridorId}`, { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
-        if (isCancelled) return;
-        if (data.status === 'success') {
-          setServices(data.scheduledServices || []);
+        if (data.status === 'success' && data.scheduledServices && data.scheduledServices.length > 0) {
+          setServices(data.scheduledServices);
           setStatus('success');
         } else {
-          // Both error states and intentional empty states (no trains found, unbounded)
-          // collapse into the safe empty state representation.
           setServices([]);
           setStatus('empty');
-          setErrorReason(data.reason);
         }
       })
       .catch(err => {
-        if (isCancelled) return;
+        if (err.name === 'AbortError') return;
         console.error('Failed to fetch scheduled services:', err);
         setServices([]);
         setStatus('error');
       });
 
     return () => {
-      isCancelled = true;
+      controller.abort();
     };
-  }, [corridorId, isOpen]);
+  }, [corridorId]);
 
-  if (!corridorId) {
+  if (!corridorId || status === 'idle' || status === 'empty' || status === 'error') {
     return null;
   }
 
   return (
-    <div className="mt-6 border border-slate-700/50 rounded-lg overflow-hidden bg-slate-800/20">
-      <button 
+    <div className="mt-6 bg-rail-panel rounded-2xl border border-rail-border shadow-sm overflow-hidden flex flex-col">
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-slate-800/40 hover:bg-slate-700/40 transition-colors focus:outline-none"
+        className="w-full flex items-center justify-between p-3 sm:p-4 bg-rail-panel-soft hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rail-blue shrink-0"
+        aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <h3 className="text-sm font-semibold text-slate-300">Scheduled Services</h3>
+          <Calendar className="w-5 h-5 text-rail-blue" aria-hidden="true" />
+          <h3 className="font-bold text-rail-text text-xs sm:text-sm uppercase tracking-wide">
+            Scheduled Services
+          </h3>
         </div>
-        <svg 
-          className={`w-5 h-5 text-slate-400 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-        </svg>
+        {status === 'loading' ? (
+          <div className="animate-spin h-5 w-5 border-2 border-rail-divider border-t-rail-blue rounded-full"></div>
+        ) : isOpen ? (
+          <ChevronUp className="w-5 h-5 text-rail-text-secondary" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-rail-text-secondary" aria-hidden="true" />
+        )}
       </button>
 
-      {isOpen && (
-        <div className="p-4 bg-slate-800/20 border-t border-slate-700/50">
-          {status === 'loading' && (
-            <div className="flex items-center justify-center p-4 text-slate-400">
-              <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Checking published schedules...</span>
-            </div>
-          )}
+      {isOpen && status === 'success' && (
+        <div className="bg-rail-panel border-t border-rail-divider flex flex-col max-h-[300px]">
+          <div className="px-4 py-3 bg-rail-panel-soft flex items-start gap-2 border-b border-rail-divider shrink-0">
+            <Info className="w-4 h-4 text-rail-blue flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-[11px] sm:text-xs font-bold text-rail-text-secondary uppercase tracking-wide">
+              Published Timetable &middot; Not Real-Time
+            </p>
+          </div>
 
-          {(status === 'empty' || (status === 'success' && services.length === 0)) && (
-            <div className="p-3 mb-2 rounded-md bg-slate-900/50 text-sm text-slate-400 border border-slate-800">
-              <p className="font-medium text-amber-500/80 mb-1">No scheduled services found for this corridor.</p>
-              <p>This does not indicate the railway is inactive or safe to cross. Unscheduled, freight, or delayed trains may pass at any time.</p>
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Header Row */}
+            <div className="grid grid-cols-3 px-4 py-2 bg-rail-panel-soft text-[10px] sm:text-xs font-bold text-rail-text-secondary uppercase tracking-wider shrink-0">
+              <div>Train Number</div>
+              <div className="text-right flex justify-end items-center gap-1"><Clock className="w-3 h-3" /> Departure</div>
+              <div className="text-right flex justify-end items-center gap-1"><Clock className="w-3 h-3" /> Arrival</div>
             </div>
-          )}
 
-          {status === 'error' && (
-            <div className="p-3 mb-2 rounded-md bg-slate-900/50 text-sm text-slate-400 border border-slate-800">
-              <p className="font-medium text-amber-500/80 mb-1">Unable to retrieve scheduled services right now.</p>
-              <p>Try again shortly.</p>
-            </div>
-          )}
-
-          {status === 'success' && services.length > 0 && (
-            <div className="space-y-3">
-              <div className="p-2 mb-3 rounded-md bg-slate-900/50 text-xs text-slate-400 border border-slate-800">
-                <p>Showing published timetables. This data is not real-time. Unscheduled traffic may still occur.</p>
-              </div>
-              
+            {/* Scrollable List */}
+            <div className="divide-y divide-rail-divider overflow-y-auto overscroll-contain">
               {services.map((service, idx) => (
-                <div key={`${service.trainNumber}-${idx}`} className="p-3 bg-slate-800/40 rounded border border-slate-700/30">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-semibold text-slate-200">{service.trainNumber}</span>
-                    <span className="text-xs px-2 py-1 bg-slate-900/50 rounded text-slate-400 border border-slate-700/50">Scheduled</span>
-                  </div>
-                  
-                  <div className="text-sm text-slate-300">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Departure</span>
-                      <span>{service.scheduledDeparture.time}</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-slate-400">Arrival</span>
-                      <span>{service.scheduledArrival.time}</span>
-                    </div>
-                  </div>
+                <div key={`${service.trainNumber}-${idx}`} className="grid grid-cols-3 px-4 py-3.5 items-center hover:bg-slate-50 transition-colors">
+                  <div className="font-bold text-rail-text text-sm sm:text-base">{service.trainNumber}</div>
+                  <div className="text-right text-sm sm:text-base text-rail-text-secondary font-medium">{service.scheduledDeparture.time}</div>
+                  <div className="text-right text-sm sm:text-base text-rail-text-secondary font-medium">{service.scheduledArrival.time}</div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

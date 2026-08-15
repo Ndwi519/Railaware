@@ -10,6 +10,7 @@ RailAware is designed to provide immediate situational awareness to passengers. 
 - **Nearby Track Detection**: Identifying the number and distance of nearby railway tracks.
 - **Nearest Legal Crossing**: Finding the closest safe pedestrian crossing or underpass.
 - **Nearest Station**: Identifying the closest railway station to the user's location.
+- **Awareness UI**: A polished sidebar overlay exposing critical safety state without cluttering the map.
 - **Scheduled Services**: Displaying expected trains on nearby corridors (explicitly timetable-derived, not live tracking).
 - **Guided Emergency Instructions**: Actionable safety advice for passengers who are near active tracks.
 - **Offline Resilience**: Essential safety guidance remains available without a network connection for previously-visited locations using Progressive Web App (PWA) caching.

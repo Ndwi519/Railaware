@@ -27,10 +27,10 @@ export class NetworkError extends Error {
 
 /**
  * AwarenessService - UI Adapter Layer
- * 
+ *
  * Maps backend payload data to explicit business semantics and visual states.
  * This is not just a passive pass-through; it owns the resolution of status labels,
- * structural disclaimer text, and rendering-specific data shapes to decouple 
+ * structural disclaimer text, and rendering-specific data shapes to decouple
  * the UI from the exact structure of the backend `/api/v1/awareness` response.
  */
 export class AwarenessService {
@@ -48,7 +48,7 @@ export class AwarenessService {
   }
 
   /**
-   * POST /api/v1/observation and return the parsed response body.
+   * POST /api/v1/awareness and return the parsed response body.
    * @param {number} lat
    * @param {number} lng
    * @param {AbortSignal} [signal]
@@ -84,8 +84,7 @@ export class AwarenessService {
       },
       discoveryContext: {
         corridor: data.nearbyTracks?.length > 0 ? { resolutionStatus: 'RESOLVED', ...data.discoveryContext?.corridor } : (data.discoveryContext?.corridor || null),
-        providerError: data.providerError || data.discoveryContext?.providerError || false,
-        discoveredTrains: data.discoveryContext?.discoveredTrains || null
+        providerError: data.providerError || data.discoveryContext?.providerError || false
       },
       assistance: {
         guidance: {
@@ -96,9 +95,15 @@ export class AwarenessService {
         emergencyContact: null
       },
       _isCached: data._isCached,
-      _cachedAt: data._cachedAt,
-      raw: data
+      _cachedAt: data._cachedAt
     };
+
+    // Architectural Decision: Expose raw payload only during development.
+    // Production has zero consumers of .raw. It remains strictly a debugging
+    // payload outside the production UI contract.
+    if (!import.meta.env.PROD) {
+      legacyResponse.raw = data;
+    }
 
     return legacyResponse;
   }

@@ -32,7 +32,7 @@ class CorridorResolutionResult {
    * @param {Object} [args.assembledCorridor=null] - (Optional) Internal physical graph topology data.
    * @param {Array} [args.stationsOutput=null] - (Optional) Internal geometric station matching data.
    */
-  constructor({ nearestCorridor, projectionResult, assembledCorridor, stationsOutput } = {}) {
+  constructor({ nearestCorridor, projectionResult, assembledCorridor, stationsOutput, _isCached, _freshness, _cacheAgeSeconds } = {}) {
     if (!nearestCorridor) {
       throw new Error("CorridorResolutionResult requires nearestCorridor");
     }
@@ -45,6 +45,10 @@ class CorridorResolutionResult {
     // constructor and private (#) fields.
     this.assembledCorridor = assembledCorridor ?? null;
     this.stationsOutput = deepFreeze(stationsOutput ?? null);
+
+    if (_isCached !== undefined) this._isCached = _isCached;
+    if (_freshness !== undefined) this._freshness = _freshness;
+    if (_cacheAgeSeconds !== undefined) this._cacheAgeSeconds = _cacheAgeSeconds;
 
     Object.freeze(this);
   }

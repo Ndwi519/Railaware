@@ -70,7 +70,13 @@ self.addEventListener('install', (event) => {
       return cache.addAll(['/', '/index.html']);
     })
   );
-  self.skipWaiting();
+  // Do NOT self.skipWaiting() here. Wait for client explicit SKIP_WAITING message.
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -93,19 +99,45 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname === '/api/v1/awareness' && event.request.method === 'POST') {
     event.respondWith(handleAwarenessPost(event.request));
   } else if (event.request.method === 'GET') {
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        return response || fetch(event.request).then((fetchRes) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            // Only cache valid HTTP responses
+    const isAppShell = event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html';
+    console.log('[SW] GET Request:', url.pathname, 'isAppShell:', isAppShell);
+
+    if (isAppShell) {
+      // NETWORK-FIRST for App Shell
+      console.log('[SW] Network-first for app shell:', url.pathname);
+      event.respondWith(
+        fetch(event.request)
+          .then((fetchRes) => {
+            console.log('[SW] Network fetch success for:', url.pathname);
             if (event.request.url.startsWith('http') && fetchRes.status === 200) {
-              cache.put(event.request, fetchRes.clone());
+              const resClone = fetchRes.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
             }
             return fetchRes;
+          })
+          .catch((err) => {
+            console.log('[SW] Network fetch failed, falling back to cache:', err);
+            // True network failure (offline), fallback to cache
+            return caches.match(event.request);
+          })
+      );
+    } else {
+      // CACHE-FIRST for Static Assets
+      event.respondWith(
+        caches.match(event.request).then((response) => {
+          if (response) console.log('[SW] Cache hit for static asset:', url.pathname);
+          return response || fetch(event.request).then((fetchRes) => {
+            return caches.open(CACHE_NAME).then((cache) => {
+              // Only cache valid HTTP responses
+              if (event.request.url.startsWith('http') && fetchRes.status === 200) {
+                cache.put(event.request, fetchRes.clone());
+              }
+              return fetchRes;
+            });
           });
-        });
-      })
-    );
+        })
+      );
+    }
   }
 });
 
@@ -125,7 +157,7 @@ async function handleAwarenessPost(request) {
   try {
     // 1. Attempt the network fetch
     const networkResponse = await fetch(request);
-    
+
     // 2. If it succeeds (2xx), save to cache
     if (networkResponse.ok) {
       const resClone = networkResponse.clone();
@@ -136,7 +168,7 @@ async function handleAwarenessPost(request) {
         console.error('[SW] Error parsing or saving network response', err);
       }
     }
-    
+
     // 3. CRITICAL: Whether it's 200, 429, or 500, we pass the real response through.
     // We only fallback to cache if fetch() throws an error (e.g. true offline).
     return networkResponse;

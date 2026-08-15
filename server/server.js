@@ -9,7 +9,7 @@ const { createRailAwareService } = require('./application/bootstrap/createRailAw
 const path = require('path');
 const dotenv = require('dotenv');
 const { createSpatialAwarenessService } = require('./application/services/createSpatialAwarenessService.js');
-const { OverpassClient } = require('./corridor-resolver/overpass.js');
+const { SpatialProviderManager } = require('./corridor-resolver/SpatialProviderManager.js');
 const { DEFAULT_THRESHOLDS } = require('./config/thresholds.js');
 const scheduleCache = require('./application/services/ScheduleCorridorCache.js');
 const { RailRadarProvider } = require('./provider/railradar.js');
@@ -83,10 +83,14 @@ async function startServer() {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
+    // Initialize shared SpatialProviderManager
+    const sharedProviderManager = config.overpassClient || new SpatialProviderManager(config);
+    config.overpassClient = sharedProviderManager;
+
     // Instantiate the singleton application service
     const railAwareService = createRailAwareService(config);
     const spatialAwarenessService = createSpatialAwarenessService({
-      overpassClient: config.overpassClient || new OverpassClient(config.overpass),
+      overpassClient: sharedProviderManager,
       thresholds: { DEFAULT_THRESHOLDS }
     });
     const ApplicationMapper = require('./application/mappers/ApplicationMapper.js');
@@ -161,32 +165,32 @@ async function startServer() {
 
     app.get('/api/v1/schedule/corridor/:corridorId', scheduleLimiter, async (req, res) => {
       const { corridorId } = req.params;
-      
+
       const now = Date.now();
       const cachedResponse = scheduleResponseCache.get(corridorId);
       if (cachedResponse && (now - cachedResponse.timestamp) < SCHEDULE_CACHE_TTL_MS) {
          const response = { ...cachedResponse.data };
          if (config.nodeEnv !== 'production') {
-            response.cacheInfo = { 
-               hit: true, 
+            response.cacheInfo = {
+               hit: true,
                ttlRemainingSeconds: Math.round((SCHEDULE_CACHE_TTL_MS - (now - cachedResponse.timestamp)) / 1000)
             };
          }
          return res.json(response);
       }
-      
+
       const stations = scheduleCache.get(corridorId);
       if (!stations) {
-        return res.json({ 
-          scheduledServices: [], 
-          status: "no_scheduled_services", 
-          reason: "corridor_not_found_or_unbounded" 
+        return res.json({
+          scheduledServices: [],
+          status: "no_scheduled_services",
+          reason: "corridor_not_found_or_unbounded"
         });
       }
 
       try {
         const trains = await scheduleProvider.discoverNearbyTrains(stations.from, stations.to);
-        
+
         const scheduledServices = trains.map(t => ({
           trainNumber: t.id,
           trainName: t.name || 'UNKNOWN',
@@ -210,7 +214,7 @@ async function startServer() {
           scheduledServices,
           status: scheduledServices.length > 0 ? "success" : "no_scheduled_services"
         };
-        
+
         _evictScheduleCacheIfFull();
         scheduleResponseCache.set(corridorId, { timestamp: Date.now(), data: response });
 
@@ -221,10 +225,10 @@ async function startServer() {
         res.json(response);
       } catch (error) {
         log.error('Schedule pipeline failed', error);
-        res.json({ 
-          scheduledServices: [], 
-          status: "unavailable", 
-          reason: "provider_error" 
+        res.json({
+          scheduledServices: [],
+          status: "unavailable",
+          reason: "provider_error"
         });
       }
     });
@@ -344,5 +348,3 @@ async function startServer() {
 }
 
 startServer();
-
-// trigger nodemon restart
