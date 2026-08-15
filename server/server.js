@@ -25,39 +25,59 @@ async function startServer() {
     const app = express();
 
     app.set('trust proxy', 1);
-    // TEMPORARY: remove after diagnosing Render -> Overpass connectivity
+    // TEMPORARY DIAGNOSTIC — remove after diagnosis
     app.get('/debug/overpass-check', async (req, res) => {
+        const endpoints = {
+            kumi: 'https://overpass.kumi.systems/api/interpreter',
+            lz4: 'https://lz4.overpass-api.de/api/interpreter',
+            primary: process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter'
+        };
+
+        const name = req.query.provider || 'primary';
+        const testUrl = endpoints[name];
+
+        if (!testUrl) {
+            return res.status(400).json({
+                ok: false,
+                error: 'Unknown provider',
+                availableProviders: Object.keys(endpoints)
+            });
+        }
+
         const start = Date.now();
 
         try {
-            const response = await fetch('https://overpass-api.de/api/interpreter', {
+            const response = await fetch(testUrl, {
                 method: 'POST',
+                body: 'data=[out:json];node(1);out;',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: 'data=[out:json];node(1);out;',
                 signal: AbortSignal.timeout(15000)
             });
 
-            const body = await response.text();
+            const text = await response.text();
 
-            res.json({
+            return res.json({
                 ok: true,
+                provider: name,
+                testedUrl: testUrl,
                 status: response.status,
-                durationMs: Date.now() - start,
-                bodyPreview: body.slice(0, 200)
+                ms: Date.now() - start,
+                bodyPreview: text.slice(0, 200)
             });
         } catch (error) {
-            res.status(500).json({
+            return res.json({
                 ok: false,
-                durationMs: Date.now() - start,
+                provider: name,
+                testedUrl: testUrl,
+                ms: Date.now() - start,
                 errorName: error.name,
                 errorMessage: error.message,
-                errorCause: error.cause
+                errorCause: error.cause || null
             });
         }
     });
-
     app.use(helmet({
       contentSecurityPolicy: {
         directives: {
