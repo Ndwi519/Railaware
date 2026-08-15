@@ -163,7 +163,7 @@ export default function LiveMapPage() {
       </div>
 
       {/* Developer Diagnostics Panel */}
-      {!import.meta.env.PROD && (
+      {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DIAGNOSTICS === 'true') && (
         <DeveloperDiagnosticsPanel
           isOpen={isDiagnosticsOpen}
           setIsOpen={setIsDiagnosticsOpen}

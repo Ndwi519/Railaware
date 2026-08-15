@@ -79,7 +79,6 @@ export default function DeveloperDiagnosticsPanel({
     }
   };
 
-  if (import.meta.env.PROD) return null;
 
   return (
     <>      {isOpen && (
