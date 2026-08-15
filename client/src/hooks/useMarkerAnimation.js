@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * useMarkerAnimation
@@ -18,35 +18,30 @@ export function useMarkerAnimation(rawPosition, smoothingFactor = 0.3) {
     if (!rawPosition) return;
 
     // Initial position or massive jump (e.g. simulated location teleport)
-    if (!smoothed || !lastRawRef.current || calculateDistance(rawPosition, lastRawRef.current) > 500) {
-
+    if (
+      !smoothed ||
+      !lastRawRef.current ||
+      calculateDistance(rawPosition, lastRawRef.current) > 500
+    ) {
       setSmoothed(rawPosition);
       lastRawRef.current = rawPosition;
       return;
     }
 
     // Apply EMA
-    const newLat = smoothed[0] + smoothingFactor * (rawPosition[0] - smoothed[0]);
-    const newLng = smoothed[1] + smoothingFactor * (rawPosition[1] - smoothed[1]);
+    const newLat =
+      smoothed[0] +
+      smoothingFactor * (rawPosition[0] - smoothed[0]);
+
+    const newLng =
+      smoothed[1] +
+      smoothingFactor * (rawPosition[1] - smoothed[1]);
 
     setSmoothed([newLat, newLng]);
     lastRawRef.current = rawPosition;
-    // ACCEPTED TECHNICAL DEBT (Phase 1):
-    // We explicitly omit `smoothed` and `smoothingFactor` from the dependency array.
-    // This is intentional to prevent an infinite feedback loop where setting `smoothed`
-    // triggers the effect again. The effect safely reads the current `smoothed` state
-    // via closure from the latest render when `rawPosition` changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawPosition]);
+  }, [rawPosition?.[0], rawPosition?.[1], smoothingFactor]);
 
-  // Memoize based on primitive values to guarantee reference stability
-  const stableLat = smoothed ? smoothed[0] : null;
-  const stableLng = smoothed ? smoothed[1] : null;
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableSmoothed = useMemo(() => smoothed, [stableLat, stableLng]);
-
-  return stableSmoothed;
+  return smoothed;
 }
 
 // Simple equirectangular distance approximation (in meters) for fast jitter detection
@@ -59,5 +54,6 @@ function calculateDistance(pos1, pos2) {
 
   const x = dLng * Math.cos((lat1 + lat2) / 2);
   const y = dLat;
+
   return Math.sqrt(x * x + y * y) * R;
 }

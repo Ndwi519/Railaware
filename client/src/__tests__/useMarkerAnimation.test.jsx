@@ -11,18 +11,19 @@ describe('useMarkerAnimation', () => {
     it('applies EMA for subsequent updates', () => {
         const { result, rerender } = renderHook(
             (props) => useMarkerAnimation(props.pos, 0.5),
-            { initialProps: { pos: [10, 20] } }
+            { initialProps: { pos: [10.0000, 20.0000] } }
         );
 
         act(() => {
-            rerender({ pos: [20, 30] });
+            rerender({ pos: [10.0001, 20.0001] });
         });
 
-        // Current = [10, 20]
-        // Target = [20, 30]
-        // Factor = 0.5
-        // New = [15, 25]
-        expect(result.current).toEqual([15, 25]);
+        // Current = [10.0000, 20.0000]
+        // Target  = [10.0001, 20.0001]
+        // Factor  = 0.5
+        // New     = [10.00005, 20.00005]
+        expect(result.current[0]).toBeCloseTo(10.00005, 6);
+        expect(result.current[1]).toBeCloseTo(20.00005, 6);
     });
 
     it('handles null position', () => {
