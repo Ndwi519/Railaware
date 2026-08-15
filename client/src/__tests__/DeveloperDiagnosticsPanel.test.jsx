@@ -13,16 +13,16 @@ describe('DeveloperDiagnosticsPanel', () => {
         expect(toggleButton).toBeNull();
     });
 
-    it('opens panel when shortcut Ctrl+Shift+D is pressed', () => {
+    it('opens panel when shortcut Ctrl+Alt+D is pressed', () => {
         render(<DeveloperDiagnosticsPanel isSimulating={false} setIsSimulating={() => {}} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         expect(screen.getByText('Diagnostics Panel')).toBeInTheDocument();
         expect(screen.getByText('ENABLE SIMULATION')).toBeInTheDocument();
     });
 
     it('shows simulation active state', () => {
         render(<DeveloperDiagnosticsPanel isSimulating={true} setIsSimulating={() => {}} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         expect(screen.getByText('SIMULATION ACTIVE')).toBeInTheDocument();
         expect(screen.getByText('Click map or enter GPS coordinates manually')).toBeInTheDocument();
     });
@@ -41,7 +41,7 @@ describe('DeveloperDiagnosticsPanel', () => {
         };
 
         render(<DeveloperDiagnosticsPanel isSimulating={false} setIsSimulating={() => {}} observationData={obsData} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
 
         expect(screen.getByText(/Phase: UNAVAILABLE/i)).toBeInTheDocument();
         expect(screen.getByText(/Provider Diagnostics/)).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe('DeveloperDiagnosticsPanel', () => {
 
     it('shows simulated position when active', () => {
         render(<DeveloperDiagnosticsPanel isSimulating={true} setIsSimulating={() => {}} simulatedPosition={[10.5, 20.5]} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         expect(screen.getByDisplayValue('10.5')).toBeInTheDocument();
         expect(screen.getByDisplayValue('20.5')).toBeInTheDocument();
     });
@@ -57,7 +57,7 @@ describe('DeveloperDiagnosticsPanel', () => {
     it('validates coordinates on apply', () => {
         const onApplyCoordinates = vi.fn();
         render(<DeveloperDiagnosticsPanel isSimulating={true} setIsSimulating={() => {}} onApplyCoordinates={onApplyCoordinates} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         const latInput = screen.getByPlaceholderText('Latitude');
         const lngInput = screen.getByPlaceholderText('Longitude');
         const applyBtn = screen.getByText('APPLY COORDINATES');
@@ -94,7 +94,7 @@ describe('DeveloperDiagnosticsPanel', () => {
                 simulatedPosition={[26, 75]}
             />
         );
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
 
         const applyBtn = screen.getByText('APPLY COORDINATES');
 
@@ -113,7 +113,7 @@ describe('DeveloperDiagnosticsPanel', () => {
     it('submits on Enter key', () => {
         const onApplyCoordinates = vi.fn();
         render(<DeveloperDiagnosticsPanel isSimulating={true} setIsSimulating={() => {}} simulatedPosition={[10, 20]} onApplyCoordinates={onApplyCoordinates} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         const latInput = screen.getByPlaceholderText('Latitude');
         const lngInput = screen.getByPlaceholderText('Longitude');
 
@@ -126,7 +126,7 @@ describe('DeveloperDiagnosticsPanel', () => {
 
     it('preserves decimal editing while active and allows sync after blur', () => {
         const { rerender } = render(<DeveloperDiagnosticsPanel isSimulating={true} setIsSimulating={() => {}} simulatedPosition={[10.5, 20.5]} />);
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         const latInput = screen.getByPlaceholderText('Latitude');
 
         fireEvent.focus(latInput);

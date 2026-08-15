@@ -129,7 +129,7 @@ describe('LiveMapPage', () => {
         const { fireEvent } = await import('@testing-library/react');
 
         // Open dev panel and enable simulation
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
 
         const enableBtn = screen.getByText('ENABLE SIMULATION');
         fireEvent.click(enableBtn);
@@ -216,7 +216,7 @@ describe('LiveMapPage', () => {
 
         const { fireEvent } = await import('@testing-library/react');
 
-        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true });
+        fireEvent.keyDown(window, { key: 'd', ctrlKey: true, altKey: true });
         fireEvent.click(screen.getByText('ENABLE SIMULATION'));
 
         const latInput = screen.getByPlaceholderText('Latitude');

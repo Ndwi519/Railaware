@@ -28,8 +28,8 @@ export default function DeveloperDiagnosticsPanel({
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      // Ctrl + Shift + D to toggle Developer Diagnostics
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+      // Ctrl + Alt + D to toggle Developer Diagnostics
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         setIsOpen(prev => !prev);
       }
