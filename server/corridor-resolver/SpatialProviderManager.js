@@ -83,10 +83,12 @@ class SpatialProviderManager {
                 log.warn('ProviderManager: Secondary provider in cooldown');
             }
 
-            // 4. Check valid stale cache that fully contains the request (Fallback)
-            if (freshEntry && freshEntry.freshness === 'STALE') {
-                log.warn('ProviderManager: ALL PROVIDERS FAILED. FALLING BACK TO STALE CACHE', { cacheAgeSeconds: freshEntry.cacheAgeSeconds });
-                return { ...freshEntry.data, _isCached: true, _freshness: 'stale', _cacheAgeSeconds: freshEntry.cacheAgeSeconds };
+            // 4. Check valid cache again that fully contains the request (Fallback after providers fail)
+            const fallbackEntry = this.cache.get(location, radii, schemaVersion);
+            if (fallbackEntry && (fallbackEntry.freshness === 'STALE' || fallbackEntry.freshness === 'FRESH')) {
+                const freshness = fallbackEntry.freshness === 'FRESH' ? 'fresh' : 'stale';
+                log.warn(`ProviderManager: ALL PROVIDERS FAILED. FALLING BACK TO CACHE [${freshness.toUpperCase()}]`, { cacheAgeSeconds: fallbackEntry.cacheAgeSeconds });
+                return { ...fallbackEntry.data, _isCached: true, _freshness: freshness, _cacheAgeSeconds: fallbackEntry.cacheAgeSeconds };
             }
 
             // 5. Degraded State (Throw if no valid data exists)

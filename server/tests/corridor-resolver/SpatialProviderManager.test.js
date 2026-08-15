@@ -155,6 +155,35 @@ describe('SpatialProviderManager', () => {
         }
     });
 
+    test('Both fail, cache became fresh during timeout -> returns fresh cache', async () => {
+        // We start with NO cache. The initial `cache.get()` will return null.
+        // During the provider fetch, we simulate another request populating the cache.
+        global.fetch.mockReturnValueOnce(new Promise(resolve => {
+            // Simulate the primary provider taking some time and then failing.
+            // Before it fails, we inject a fresh cache entry directly into the cache.
+            manager.cache.set({ lat: 10, lng: 20 }, { track: 500, station: 500, crossing: 500 }, { mockData: true });
+
+            resolve({
+                ok: false,
+                status: 500,
+                text: jest.fn().mockResolvedValueOnce('Fail')
+            });
+        })).mockReturnValueOnce(new Promise(resolve => {
+            resolve({
+                ok: false,
+                status: 500,
+                text: jest.fn().mockResolvedValueOnce('Fail')
+            });
+        }));
+
+        const result = await manager.fetchNearbyRailways({ lat: 10, lng: 20 }, { track: 500, station: 500, crossing: 500 });
+
+        // Since providers failed but cache now has valid data, it should return that fresh data
+        expect(result._isCached).toBe(true);
+        expect(result._freshness).toBe('fresh');
+        expect(result.mockData).toBe(true);
+    });
+
     test('Coalesces concurrent identical requests', async () => {
         let resolveFetch;
         global.fetch.mockReturnValueOnce(new Promise(resolve => {

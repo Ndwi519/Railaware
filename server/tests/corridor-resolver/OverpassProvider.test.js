@@ -25,11 +25,11 @@ describe('OverpassProvider Circuit Breaker', () => {
         expect(provider.isHealthy()).toBe(true);
     });
 
-    test('Exponential cooldown increases up to 5x cap on consecutive failures', async () => {
+    test('HTTP 429: Exponential cooldown increases up to 5x cap on consecutive failures starting from first failure', async () => {
         global.fetch.mockResolvedValue({
             ok: false,
-            status: 500,
-            text: jest.fn().mockResolvedValue('Server Error')
+            status: 429,
+            text: jest.fn().mockResolvedValue('Rate Limited')
         });
 
         const originalNow = Date.now;
@@ -72,6 +72,68 @@ describe('OverpassProvider Circuit Breaker', () => {
             // Failure 5: consecutiveFailures = 5. Cooldown = 60000 * Math.min(2^4, 5) = 300000
             await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
             expect(provider.health.consecutiveFailures).toBe(5);
+            expect(provider.health.cooldownUntil).toBe(currentTime + 300000); // capped at 5x
+
+        } finally {
+            Date.now = originalNow;
+        }
+    });
+
+    test('Transient Errors: 5s cooldown on first failure, then exponential up to 5x cap', async () => {
+        global.fetch.mockResolvedValue({
+            ok: false,
+            status: 500,
+            text: jest.fn().mockResolvedValue('Server Error')
+        });
+
+        const originalNow = Date.now;
+        let currentTime = 1000000;
+        Date.now = () => currentTime;
+
+        try {
+            // Failure 1: consecutiveFailures = 1. Cooldown = 5000 (transient rule)
+            await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
+            expect(provider.health.consecutiveFailures).toBe(1);
+            expect(provider.health.cooldownUntil).toBe(currentTime + 5000);
+
+            // Fast forward past 5s cooldown
+            currentTime += 5001;
+
+            // Failure 2: consecutiveFailures = 2. Cooldown = 60000 * 2^0 = 60000
+            await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
+            expect(provider.health.consecutiveFailures).toBe(2);
+            expect(provider.health.cooldownUntil).toBe(currentTime + 60000);
+
+            // Fast forward past cooldown
+            currentTime += 60001;
+
+            // Failure 3: consecutiveFailures = 3. Cooldown = 60000 * 2^1 = 120000
+            await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
+            expect(provider.health.consecutiveFailures).toBe(3);
+            expect(provider.health.cooldownUntil).toBe(currentTime + 120000);
+
+            // Fast forward past cooldown
+            currentTime += 120001;
+
+            // Failure 4: consecutiveFailures = 4. Cooldown = 60000 * 2^2 = 240000
+            await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
+            expect(provider.health.consecutiveFailures).toBe(4);
+            expect(provider.health.cooldownUntil).toBe(currentTime + 240000);
+
+            // Fast forward past cooldown
+            currentTime += 240001;
+
+            // Failure 5: consecutiveFailures = 5. Cooldown = 60000 * 2^3 = 480000. Wait, Math.min(2^3, 5) -> 5 * 60000 = 300000
+            await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
+            expect(provider.health.consecutiveFailures).toBe(5);
+            expect(provider.health.cooldownUntil).toBe(currentTime + 300000);
+
+            // Fast forward past cooldown
+            currentTime += 300001;
+
+            // Failure 6: consecutiveFailures = 6. Cooldown = 60000 * Math.min(2^4, 5) = 300000
+            await expect(provider.fetch({ lat: 10, lng: 20 }, { track: 10, station: 10, crossing: 10 })).rejects.toThrow(TopologyError);
+            expect(provider.health.consecutiveFailures).toBe(6);
             expect(provider.health.cooldownUntil).toBe(currentTime + 300000); // capped at 5x
 
         } finally {
@@ -138,15 +200,15 @@ describe('OverpassProvider Circuit Breaker', () => {
 
             // Test exact boundaries
             // Date.now() < cooldownUntil => unhealthy
-            currentTime = 1000000 + 59999;
+            currentTime = 1000000 + 4999;
             expect(provider.isHealthy()).toBe(false);
 
             // Date.now() === cooldownUntil => healthy
-            currentTime = 1000000 + 60000;
+            currentTime = 1000000 + 5000;
             expect(provider.isHealthy()).toBe(true);
 
             // Date.now() > cooldownUntil => healthy
-            currentTime = 1000000 + 60001;
+            currentTime = 1000000 + 5001;
             expect(provider.isHealthy()).toBe(true);
         } finally {
             Date.now = originalNow;
@@ -214,7 +276,7 @@ describe('OverpassProvider Circuit Breaker', () => {
             }, 'TIMEOUT');
         });
 
-        test('Network failure increments failure exactly once and does NOT trigger cooldown', async () => {
+        test('Network failure increments failure exactly once and triggers cooldown', async () => {
             await testFailureType(() => Promise.reject(new Error('Network offline')), 'NETWORK_FAILURE');
         });
 

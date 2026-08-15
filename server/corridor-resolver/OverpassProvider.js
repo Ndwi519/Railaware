@@ -40,10 +40,20 @@ class OverpassProvider {
         // Cooldown if not a logic error but a capacity/network/malformed issue
         if (category === 'HTTP_429' || category === 'HTTP_5XX' || category === 'TIMEOUT' || category === 'NETWORK_FAILURE' || category === 'MALFORMED_RESPONSE') {
             const cooldownMs = this.config.overpass.providerCooldownMs !== undefined ? this.config.overpass.providerCooldownMs : 60000;
-            // Exponential backoff
-            const backoffMs = cooldownMs * Math.min(Math.pow(2, this.health.consecutiveFailures - 1), 5);
-            this.health.cooldownUntil = Date.now() + backoffMs;
+            let backoffMs;
 
+            if (category === 'HTTP_429') {
+                // Retain existing immediate/exponential cooldown for 429
+                backoffMs = cooldownMs * Math.min(Math.pow(2, this.health.consecutiveFailures - 1), 5);
+            } else if (this.health.consecutiveFailures === 1) {
+                // First transient failure: short 5-second cooldown
+                backoffMs = Math.min(5000, cooldownMs);
+            } else {
+                // Second and subsequent consecutive transient failures: exponential cooldown
+                backoffMs = cooldownMs * Math.min(Math.pow(2, this.health.consecutiveFailures - 2), 5);
+            }
+
+            this.health.cooldownUntil = Date.now() + backoffMs;
             log.warn(`Provider [${this.name}] entered cooldown for ${backoffMs}ms due to ${category}`);
         }
     }
