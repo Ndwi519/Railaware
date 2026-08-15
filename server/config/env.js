@@ -28,13 +28,15 @@ function loadEnv() {
 
   const emergencyPhoneNumber = process.env['EMERGENCY_PHONE_NUMBER'] || null;
 
+  const providerTimeoutMs = parseStrictPositiveInteger('PROVIDER_TIMEOUT_MS', 3000);
+
   return {
     railradarKey,
     railradarMinEvidence,
     emergencyPhoneNumber,
     provider: {
-      timeoutMs: parseStrictPositiveInteger('PROVIDER_TIMEOUT_MS', 3000),
-    },
+      timeoutMs: providerTimeoutMs,
+  },
     port,
     nodeEnv: rawEnv,
     corsOrigins,
@@ -47,7 +49,7 @@ function loadEnv() {
       cacheMaxAgeMs: parseNonNegativeInteger('SPATIAL_CACHE_MAX_AGE_SECONDS', 24 * 60 * 60) * 1000,
       cacheMaxEntries: parseStrictPositiveInteger('SPATIAL_CACHE_MAX_ENTRIES', 1000),
       providerCooldownMs: parseNonNegativeInteger('PROVIDER_FAILURE_COOLDOWN_SECONDS', 60) * 1000,
-      requestTimeoutMs: 10000,
+      requestTimeoutMs: providerTimeoutMs,
     }
   };
 }
