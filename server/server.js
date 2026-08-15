@@ -26,59 +26,58 @@ async function startServer() {
 
     app.set('trust proxy', 1);
     // TEMPORARY DIAGNOSTIC — remove after diagnosis
+    // TEMPORARY DIAGNOSTIC — remove after diagnosis
     app.get('/debug/overpass-check', async (req, res) => {
-        const endpoints = {
-            kumi: 'https://overpass.kumi.systems/api/interpreter',
-            lz4: 'https://lz4.overpass-api.de/api/interpreter',
-            primary: process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter'
-        };
+      const providers = {
+        kumi: 'https://overpass.kumi.systems/api/interpreter',
+        primary: 'https://overpass.private.coffee/api/interpreter',
+      };
 
-        const name = req.query.provider || 'primary';
-        const testUrl = endpoints[name];
+      const provider = req.query.provider || 'kumi';
+      const testUrl = providers[provider];
 
-        if (!testUrl) {
-            return res.status(400).json({
-                ok: false,
-                error: 'Unknown provider',
-                availableProviders: Object.keys(endpoints)
-            });
-        }
+      if (!testUrl) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Unknown provider'
+        });
+      }
 
-        const start = Date.now();
+      const start = Date.now();
 
-        try {
-            const response = await fetch(testUrl, {
-                method: 'POST',
-                body: 'data=[out:json];node(1);out;',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'User-Agent': 'RailAware/1.0 (Production)'
-                },
-                signal: AbortSignal.timeout(15000)
-            });
+      try {
+        const url = `${testUrl}?data=${encodeURIComponent('[out:json];node(1);out;')}`;
 
-            const text = await response.text();
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'RailAware/1.0 (https://railaware-api.onrender.com)'
+          },
+          signal: AbortSignal.timeout(15000)
+        });
 
-            return res.json({
-                ok: true,
-                provider: name,
-                testedUrl: testUrl,
-                status: response.status,
-                ms: Date.now() - start,
-                bodyPreview: text.slice(0, 200)
-            });
-        } catch (error) {
-            return res.json({
-                ok: false,
-                provider: name,
-                testedUrl: testUrl,
-                ms: Date.now() - start,
-                errorName: error.name,
-                errorMessage: error.message,
-                errorCause: error.cause || null
-            });
-        }
-    });
+        const text = await response.text();
+
+        return res.json({
+          ok: true,
+          provider,
+          testedUrl: testUrl,
+          status: response.status,
+          durationMs: Date.now() - start,
+          bodyPreview: text.slice(0, 300)
+        });
+      } catch (error) {
+        return res.json({
+          ok: false,
+          provider,
+          testedUrl: testUrl,
+          durationMs: Date.now() - start,
+          errorName: error.name,
+          errorMessage: error.message,
+          errorCause: error.cause || null
+        });
+      }
+    }); 
     app.use(helmet({
       contentSecurityPolicy: {
         directives: {
