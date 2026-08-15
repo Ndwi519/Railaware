@@ -30,10 +30,10 @@ async function startServer() {
     app.get('/debug/overpass-check', async (req, res) => {
       const providers = {
         kumi: 'https://overpass.kumi.systems/api/interpreter',
-        primary: 'https://overpass.private.coffee/api/interpreter',
+        primary: config.overpass.primaryUrl,
       };
 
-      const provider = req.query.provider || 'kumi';
+      const provider = req.query.provider || 'primary';
       const testUrl = providers[provider];
 
       if (!testUrl) {
