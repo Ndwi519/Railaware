@@ -20,7 +20,7 @@ function indexOverpassElements(elements) {
     if (element.type === 'node' && typeof element.id === 'number' && typeof element.lat === 'number' && typeof element.lon === 'number') {
       nodeCoords.set(element.id, { lat: element.lat, lng: element.lon });
     } else if (element.type === 'way' && typeof element.id === 'number' && Array.isArray(element.nodes) && element.nodes.length >= 2) {
-      if (element.tags && element.tags.railway === 'rail') {
+      if (element.tags && (element.tags.railway === 'rail' || element.tags.railway === 'narrow_gauge')) {
         ways.set(element.id, { id: element.id, nodeIds: [...element.nodes] });
       }
     }

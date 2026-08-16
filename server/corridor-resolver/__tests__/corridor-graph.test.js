@@ -21,6 +21,17 @@ describe('Corridor Graph Foundation', () => {
       expect(out1).toEqual(out2);
     });
 
+    it('indexOverpassElements processes narrow_gauge tags successfully', () => {
+      const elements = [
+        { type: 'node', id: 1, lat: 10, lon: 20 },
+        { type: 'way', id: 101, nodes: [1, 2], tags: { railway: 'narrow_gauge' } }
+      ];
+
+      const out = indexOverpassElements(elements);
+      expect(out.ways.size).toBe(1);
+      expect(out.ways.get(101)).toBeDefined();
+    });
+
     it('returns empty maps for malformed inputs without throwing', () => {
       const out = indexOverpassElements(null);
       expect(out.nodeCoords.size).toBe(0);

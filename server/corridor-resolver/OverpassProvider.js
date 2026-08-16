@@ -66,7 +66,7 @@ class OverpassProvider {
         const query = `
       [out:json][timeout:${Math.floor(this.config.overpass.requestTimeoutMs / 1000)}];
       (
-        way["railway"="rail"](around:${radii.track},${location.lat},${location.lng});
+        way["railway"~"^(rail|narrow_gauge)$"](around:${radii.track},${location.lat},${location.lng});
         node["railway"="station"](around:${radii.station},${location.lat},${location.lng});
         node["railway"~"^(crossing|level_crossing)$"](around:${radii.crossing},${location.lat},${location.lng});
       );
