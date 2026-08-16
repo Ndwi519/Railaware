@@ -94,6 +94,7 @@ export class AwarenessService {
         availableActions: [],
         emergencyContact: null
       },
+      dataStatus: data.degraded ? 'DEGRADED' : (data._isCached ? 'CACHED' : 'LIVE'),
       _isCached: data._isCached,
       _cachedAt: data._cachedAt
     };

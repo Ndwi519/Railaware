@@ -186,10 +186,15 @@ export default function AwarenessSidebar({ observationData, isTrainNearby, isOpe
                     <div className="p-3 sm:p-4 flex justify-between items-center">
                       <div className="flex items-center gap-3">
                         <AwarenessIcon icon={Activity} colorClass="text-rail-green" bgClass="bg-rail-green-soft" />
-                        <span className="text-xs sm:text-sm font-medium text-rail-text-secondary">Offline Status</span>
+                        <span className="text-xs sm:text-sm font-medium text-rail-text-secondary">Data Status</span>
                       </div>
-                      <span className={`text-xs sm:text-sm font-bold px-2 py-1 rounded-full ${observationData._isCached ? 'text-rail-text bg-slate-100' : 'bg-rail-green-soft text-rail-green-text'}`}>
-                        {observationData._isCached ? 'Cached' : 'Live'}
+                      <span className={`text-xs sm:text-sm font-bold px-2 py-1 rounded-full ${
+                        observationData.dataStatus === 'DEGRADED' ? 'bg-orange-100 text-orange-800' :
+                        observationData.dataStatus === 'CACHED' ? 'text-rail-text bg-slate-100' :
+                        'bg-rail-green-soft text-rail-green-text'
+                      }`}>
+                        {observationData.dataStatus === 'DEGRADED' ? 'Unavailable' :
+                         observationData.dataStatus === 'CACHED' ? 'Cached' : 'Live'}
                       </span>
                     </div>
                   </div>

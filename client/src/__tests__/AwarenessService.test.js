@@ -33,6 +33,9 @@ describe('AwarenessService', () => {
         availableActions: [],
         emergencyContact: null
       },
+      dataStatus: 'LIVE',
+      _isCached: undefined,
+      _cachedAt: undefined,
       raw: mockData
     };
     mockFetch.mockResolvedValueOnce({
@@ -64,5 +67,19 @@ describe('AwarenessService', () => {
       status: 500,
       name: 'NetworkError'
     });
+  });
+
+  it('maps degraded response correctly', async () => {
+    const mockData = { degraded: true, _isCached: false };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: vi.fn().mockReturnValue('test-session') },
+      json: async () => mockData
+    });
+
+    const signal = new AbortController().signal;
+    const result = await service.fetchAwareness(10, 20, signal);
+    
+    expect(result.dataStatus).toBe('DEGRADED');
   });
 });
