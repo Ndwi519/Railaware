@@ -30,7 +30,12 @@ function ScheduledServices({ corridorId }) {
     const controller = new AbortController();
     setStatus('loading');
 
-    fetch(`/api/v1/schedule/corridor/${corridorId}`, { signal: controller.signal })
+    const API_BASE_URL =
+      import.meta.env.VITE_API_URL || '';
+
+    fetch(`${API_BASE_URL}/api/v1/schedule/corridor/${corridorId}`, {
+      signal: controller.signal
+    })
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success' && data.scheduledServices && data.scheduledServices.length > 0) {
