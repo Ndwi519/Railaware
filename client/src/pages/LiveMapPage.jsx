@@ -22,7 +22,7 @@ export default function LiveMapPage() {
   const { isSimulating, setIsSimulating, simulatedPosition, setSimulatedPosition } =
     useSimulation();
 
-  const { rawPosition, permissionStatus } = useLocationTracking(
+  const { rawPosition, permissionStatus, geoError, requestPermission } = useLocationTracking(
     isSimulating,
     simulatedPosition
   );
@@ -186,21 +186,70 @@ export default function LiveMapPage() {
         />
       )}
 
-      {/* Permission Denied — Full Screen Blocking Overlay */}
-      {permissionStatus === 'denied' && (
+      {/* Permission Prompts and Overlays */}
+      {(permissionStatus === 'prompt' || permissionStatus === 'denied' || permissionStatus === 'unsupported') && !isSimulating && (
         <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/95 backdrop-blur-md p-6 text-center border-4 border-rail-red-border">
           <MapPinOff className="w-16 h-16 text-rail-red-text mb-6" />
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">Location Access Required</h2>
-          <p className="text-slate-600 text-lg max-w-md mb-8">
-            RailAware requires your location to detect nearby railway corridors.
-            We do not save your location history.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-8 py-4 bg-rail-red hover:bg-rail-red-hover text-rail-red-text font-bold rounded-xl shadow-xl transition-all"
-          >
-            Enable Location &amp; Reload
-          </button>
+
+          {permissionStatus === 'unsupported' ? (
+            <>
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">Location Unsupported</h2>
+              <p className="text-slate-600 text-lg max-w-md mb-8">
+                Your browser or device does not support geolocation, which is required for RailAware to function.
+              </p>
+            </>
+          ) : permissionStatus === 'prompt' ? (
+            <>
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">Location Access Required</h2>
+              <p className="text-slate-600 text-lg max-w-md mb-8">
+                RailAware needs your device location to detect nearby railway infrastructure.
+              </p>
+              <button
+                onClick={requestPermission}
+                className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xl transition-all mb-4"
+              >
+                Enable Location
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">Location access is blocked</h2>
+              <p className="text-slate-600 text-lg max-w-md mb-8">
+                RailAware needs your device location to detect nearby railway infrastructure.
+                If you previously blocked location, open your browser's site settings, set Location to Allow, then return here.
+              </p>
+              <button
+                onClick={requestPermission}
+                className="px-8 py-4 bg-rail-red hover:bg-rail-red-hover text-rail-red-text font-bold rounded-xl shadow-xl transition-all mb-4"
+              >
+                Try Again
+              </button>
+            </>
+          )}
+
+          {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DIAGNOSTICS === 'true') && geoError && (
+            <div className="mt-4 text-xs text-slate-500 bg-slate-100 p-2 rounded">
+              Err {geoError.code}: {geoError.message} (State: {permissionStatus})
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Transient GPS Error Overlay */}
+      {permissionStatus === 'granted' && geoError && (geoError.code === 2 || geoError.code === 3) && !isSimulating && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-sm">
+          <div className="bg-yellow-50 backdrop-blur-lg border border-yellow-200 rounded-xl p-4 shadow-lg flex flex-col items-center space-y-3 text-center">
+            <div>
+              <h3 className="text-yellow-900 font-bold text-sm">Unable to get your current location</h3>
+              <p className="text-yellow-700 text-sm mt-1">The device could not provide a GPS position right now. Check your location settings and try again.</p>
+            </div>
+            <button
+              onClick={requestPermission}
+              className="px-4 py-2 bg-yellow-200 hover:bg-yellow-300 text-yellow-900 font-bold rounded-lg text-sm transition-colors w-full"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       )}
 

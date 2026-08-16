@@ -17,22 +17,33 @@ vi.mock('../components/LiveMap', () => ({
 describe('LiveMapPage', () => {
     beforeEach(() => {
         global.navigator.geolocation = {
+            getCurrentPosition: vi.fn(),
             watchPosition: vi.fn(),
             clearWatch: vi.fn()
+        };
+        global.navigator.permissions = {
+            query: vi.fn().mockResolvedValue({ state: 'granted' })
         };
         vi.stubEnv('DEV', true);
     });
 
     it('shows permission denied overlay if geolocation fails', async () => {
-        global.navigator.geolocation.watchPosition.mockImplementationOnce((success, error) => {
+        global.navigator.permissions.query.mockResolvedValueOnce({ state: 'prompt' });
+        global.navigator.geolocation.getCurrentPosition = vi.fn((success, error) => {
             error({ code: 1, message: 'User denied Geolocation' }); // code 1 = PERMISSION_DENIED
-            return 123;
         });
 
         await act(async () => {
             render(<LiveMapPage />);
         });
-        expect(screen.getByText('Location Access Required')).toBeInTheDocument();
+
+        // Find the button and click it
+        const enableBtn = screen.getByText('Enable Location');
+        await act(async () => {
+            enableBtn.click();
+        });
+
+        expect(screen.getByText('Location access is blocked')).toBeInTheDocument();
     });
 
     it('renders observation data when fetch succeeds', async () => {
